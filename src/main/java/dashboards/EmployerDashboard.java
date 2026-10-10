@@ -2,6 +2,9 @@ package dashboards;
 
 import components.Layout;
 import pages.EmployerHomePage;
+import pages.ApplicantsPage;
+import pages.MessagesPage;
+import pages.NotificationsPage;
 import users.User;
 
 import javax.swing.*;
@@ -25,8 +28,58 @@ public class EmployerDashboard extends Dashboard {
         center.add(new EmployerHomePage(getUser()), BorderLayout.CENTER);
     }
 
-    //fort esting
-    public void onMenuClick(String name) {
-        System.out.println("Employer clicked: " + name);
+@Override
+public void onMenuClick(String name) {
+
+    JPanel center = layout.getContentPanel();
+
+    if ("Applicants".equals(name)) {
+
+        center.removeAll();
+
+        center.add(
+            new ApplicantsPage(getUser()),
+            BorderLayout.CENTER
+        );
+
+    } else if ("Messages".equals(name)) {
+
+        center.removeAll();
+
+        center.add(
+            new MessagesPage(getUser()),
+            BorderLayout.CENTER
+        );
+
+
+} else if ("Notifications".equals(name)) {
+
+    center.removeAll();
+
+    center.add(
+        new NotificationsPage(getUser()),
+        BorderLayout.CENTER
+    );
+
+} else if ("Home".equals(name)) {
+
+
+        center.removeAll();
+
+        center.add(
+            new EmployerHomePage(getUser()),
+            BorderLayout.CENTER
+        );
+
+    } else {
+
+        System.out.println(
+            "Employer clicked: " + name
+        );
+
+        return;
     }
+
+    center.revalidate();
+    center.repaint();
 }
