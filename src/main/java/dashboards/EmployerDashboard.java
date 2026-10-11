@@ -45,7 +45,6 @@ public class EmployerDashboard extends Dashboard {
         } else if (name.equals("Notifications")) {
             showPage(new NotificationsPage(getUser()));
         } else {
-            // Fallback default message if a button isn't wired up yet (like Interviews)
             System.out.println("Employer clicked unhandled menu item: " + name);
             showPage(new EmployerHomePage(getUser()));
         }

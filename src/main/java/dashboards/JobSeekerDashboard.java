@@ -1,8 +1,7 @@
 package dashboards;
 
 import components.Layout;
-import pages.JobSeekerHomePage;
-import pages.JobSeekerRecommendationsPage;
+import pages.*;
 import users.User;
 
 import javax.swing.*;
@@ -33,7 +32,14 @@ public class JobSeekerDashboard extends Dashboard {
             showPage(new JobSeekerHomePage(getUser()));
         } else if (name.equals("Recommendations")) {
             showPage(new JobSeekerRecommendationsPage(getUser()));
+        } else if (name.equals("Applicants")) {
+            showPage(new ApplicantsPage(getUser()));
+        } else if (name.equals("Messages")) {
+            showPage(new MessagesPage(getUser()));
+        } else if (name.equals("Notifications")) {
+            showPage(new NotificationsPage(getUser()));
         } else {
+            System.out.println("Job Seeker clicked unhandled menu item: " + name);
             showPage(new JobSeekerHomePage(getUser()));
         }
     }
