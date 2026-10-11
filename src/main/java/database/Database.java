@@ -1,5 +1,7 @@
 package database;
 
+import models.Applicant;
+import models.Job;
 import users.Employer;
 import users.JobSeeker;
 import users.User;
@@ -11,6 +13,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class Database {
     private static final String DB_FOLDER = "data";
@@ -54,11 +59,61 @@ public class Database {
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(rememberSql);
         }
+
+        String jobsTable = "CREATE TABLE IF NOT EXISTS jobs (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "employer_email TEXT NOT NULL, " +
+                "title TEXT NOT NULL, " +
+                "category TEXT NOT NULL, " +
+                "job_type TEXT NOT NULL, " +
+                "workplace_type TEXT NOT NULL, " +
+                "salary_min INTEGER NOT NULL, " +
+                "salary_max INTEGER NOT NULL, " +
+                "description TEXT, " +
+                "skills TEXT, " +
+                "accommodations_available INTEGER DEFAULT 0, " +
+                "accommodations TEXT, " +
+                "applicant_types TEXT, " +
+                "experience_required INTEGER DEFAULT 0, " +
+                "experience_length TEXT, " +
+                "location TEXT, " +
+                "city TEXT, " +
+                "logo_path TEXT, " +
+                "status TEXT DEFAULT 'Active', " +
+                "favorite INTEGER DEFAULT 0, " +
+                "created_at TEXT DEFAULT CURRENT_TIMESTAMP)";
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(jobsTable);
+        }
+
+        String applicantsTable = "CREATE TABLE IF NOT EXISTS applicants (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "job_id INTEGER NOT NULL, " +
+                "name TEXT NOT NULL, " +
+                "details TEXT, " +
+                "status TEXT DEFAULT 'Under Review', " +
+                "match_percent INTEGER DEFAULT 0, " +
+                "applied_at TEXT DEFAULT CURRENT_TIMESTAMP)";
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(applicantsTable);
+        }
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("ALTER TABLE applicants ADD COLUMN applied_at TEXT");
+        } catch (SQLException e) {}
+
+        String favTables = "CREATE TABLE IF NOT EXISTS seeker_favorites (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "seeker_email TEXT NOT NULL, " +
+                "job_id INTEGER NOT NULL, " +
+                "UNIQUE(seeker_email, job_id))";
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(favTables);
+        }
     }
 
     public static void dropTables(Connection conn) throws SQLException {
         try (Statement st = conn.createStatement()) {
-            st.execute("DROP TABLE IF EXISTS users");
+            st.execute("DROP TABLE IF EXISTS applicants");
         }
     }
 
@@ -182,6 +237,322 @@ public class Database {
         } catch (SQLException e) {
             System.err.println("DB error: " + e.getMessage());
             return false;
+        }
+    }
+
+    // job postng
+
+    public static int createJob(Job job) {
+        String sql = "INSERT INTO jobs (employer_email, title, category, job_type, workplace_type, " +
+                "salary_min, salary_max, description, skills, accommodations_available, accommodations, " +
+                "applicant_types, experience_required, experience_length, location, city, logo_path, status, favorite) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            fillJobStatement(ps, job);
+            ps.executeUpdate();
+
+            try (ResultSet keys = ps.getGeneratedKeys()) {
+                if (keys.next()) {
+                    int newId = keys.getInt(1);
+                    addSampleApplicants(newId);
+                    return newId;
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+        }
+        return -1;
+    }
+
+    public static void updateJob(Job job) {
+        String sql = "UPDATE jobs SET title=?, category=?, job_type=?, workplace_type=?, salary_min=?, salary_max=?, " +
+                "description=?, skills=?, accommodations_available=?, accommodations=?, applicant_types=?, " +
+                "experience_required=?, experience_length=?, location=?, city=?, logo_path=?, status=? WHERE id=?";
+
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, job.getTitle());
+            ps.setString(2, job.getCategory());
+            ps.setString(3, job.getJobType());
+            ps.setString(4, job.getWorkplaceType());
+            ps.setInt(5, job.getSalaryMin());
+            ps.setInt(6, job.getSalaryMax());
+            ps.setString(7, job.getDescription());
+            ps.setString(8, String.join(";", job.getSkills()));
+            ps.setInt(9, job.isAccommodationsAvailable() ? 1 : 0);
+            ps.setString(10, String.join(";", job.getAccommodations()));
+            ps.setString(11, String.join(";", job.getApplicantTypes()));
+            ps.setInt(12, job.isExperienceRequired() ? 1 : 0);
+            ps.setString(13, job.getExperienceLength());
+            ps.setString(14, job.getLocation());
+            ps.setString(15, job.getCity());
+            ps.setString(16, job.getLogoPath());
+            ps.setString(17, job.getStatus());
+            ps.setInt(18, job.getId());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+        }
+    }
+
+    private static void fillJobStatement(PreparedStatement ps, Job job) throws SQLException {
+        ps.setString(1, job.getEmployerEmail());
+        ps.setString(2, job.getTitle());
+        ps.setString(3, job.getCategory());
+        ps.setString(4, job.getJobType());
+        ps.setString(5, job.getWorkplaceType());
+        ps.setInt(6, job.getSalaryMin());
+        ps.setInt(7, job.getSalaryMax());
+        ps.setString(8, job.getDescription());
+        ps.setString(9, String.join(";", job.getSkills()));
+        ps.setInt(10, job.isAccommodationsAvailable() ? 1 : 0);
+        ps.setString(11, String.join(";", job.getAccommodations()));
+        ps.setString(12, String.join(";", job.getApplicantTypes()));
+        ps.setInt(13, job.isExperienceRequired() ? 1 : 0);
+        ps.setString(14, job.getExperienceLength());
+        ps.setString(15, job.getLocation());
+        ps.setString(16, job.getCity());
+        ps.setString(17, job.getLogoPath());
+        ps.setString(18, job.getStatus());
+        ps.setInt(19, job.isFavorite() ? 1 : 0);
+    }
+
+    public static List<Job> getJobsByEmployer(String email) {
+        String sql = "SELECT * FROM jobs WHERE employer_email = ?";
+        List<Job> jobs = new ArrayList<>();
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, email.toLowerCase());
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    jobs.add(makeJob(rs));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+        }
+        return jobs;
+    }
+
+    public static List<Job> getAllJobs() {
+        String sql = "SELECT * FROM jobs";
+        List<Job> jobs = new ArrayList<>();
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                jobs.add(makeJob(rs));
+            }
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+        }
+        return jobs;
+    }
+
+    public static void setJobFavorite(int jobId, boolean favorite) {
+        String sql = "UPDATE jobs SET favorite = ? WHERE id = ?";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, favorite ? 1 : 0);
+            ps.setInt(2, jobId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+        }
+    }
+
+    private static Job makeJob(ResultSet rs) throws SQLException {
+        Job job = new Job();
+        job.setId(rs.getInt("id"));
+        job.setEmployerEmail(rs.getString("employer_email"));
+        job.setTitle(rs.getString("title"));
+        job.setCategory(rs.getString("category"));
+        job.setJobType(rs.getString("job_type"));
+        job.setWorkplaceType(rs.getString("workplace_type"));
+        job.setSalaryMin(rs.getInt("salary_min"));
+        job.setSalaryMax(rs.getInt("salary_max"));
+        job.setDescription(rs.getString("description"));
+        job.setSkills(splitText(rs.getString("skills")));
+        job.setAccommodationsAvailable(rs.getInt("accommodations_available") == 1);
+        job.setAccommodations(splitText(rs.getString("accommodations")));
+        job.setApplicantTypes(splitText(rs.getString("applicant_types")));
+        job.setExperienceRequired(rs.getInt("experience_required") == 1);
+        job.setExperienceLength(rs.getString("experience_length"));
+        job.setLocation(rs.getString("location"));
+        job.setCity(rs.getString("city"));
+        job.setLogoPath(rs.getString("logo_path"));
+        job.setStatus(rs.getString("status"));
+        job.setFavorite(rs.getInt("favorite") == 1);
+        job.setCreatedAt(rs.getString("created_at"));
+        return job;
+    }
+
+    private static List<String> splitText(String text) {
+        List<String> list = new ArrayList<>();
+        if (text != null && !text.isEmpty()) {
+            list.addAll(Arrays.asList(text.split(";")));
+        }
+        return list;
+    }
+
+    // applicants
+    public static List<Applicant> getApplicantsByJob(int jobId) {
+        String sql = "SELECT * FROM applicants WHERE job_id = ? ORDER BY applied_at DESC";
+        List<Applicant> applicants = new ArrayList<>();
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, jobId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    applicants.add(new Applicant(
+                            rs.getInt("id"),
+                            rs.getInt("job_id"),
+                            rs.getString("name"),
+                            rs.getString("details"),
+                            rs.getString("status"),
+                            rs.getInt("match_percent"),
+                            rs.getString("applied_at")));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+        }
+        return applicants;
+    }
+
+    public static int countApplicantsByEmployer(String employerEmail) {
+        String sql = "SELECT COUNT(*) FROM applicants a " +
+                "JOIN jobs j ON j.id = a.job_id WHERE j.employer_email = ?";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, employerEmail.toLowerCase());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+        }
+        return 0;
+    }
+
+    public static List<Applicant> getRecentApplicantsByEmployer(String employerEmail, int limit) {
+        String sql = "SELECT a.id, a.job_id, a.name, a.details, a.status, a.match_percent, a.applied_at " +
+                "FROM applicants a JOIN jobs j ON j.id = a.job_id " +
+                "WHERE j.employer_email = ? ORDER BY a.applied_at DESC LIMIT ?";
+        List<Applicant> list = new ArrayList<>();
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, employerEmail.toLowerCase());
+            ps.setInt(2, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(new Applicant(
+                            rs.getInt("id"),
+                            rs.getInt("job_id"),
+                            rs.getString("name"),
+                            rs.getString("details"),
+                            rs.getString("status"),
+                            rs.getInt("match_percent"),
+                            rs.getString("applied_at")));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+        }
+        return list;
+    }
+
+    public static void updateApplicantStatus(int applicantId, String status) {
+        String sql = "UPDATE applicants SET status = ? WHERE id = ?";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, status);
+            ps.setInt(2, applicantId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+        }
+    }
+
+    public static int countApplicants(int jobId) {
+        String sql = "SELECT COUNT(*) FROM applicants WHERE job_id = ?";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, jobId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+        }
+        return 0;
+    }
+
+    // test applicants lang papalitan to mamaya pag meron na ung ibang part nila
+    private static void addSampleApplicants(int jobId) {
+        String sql = "INSERT INTO applicants (job_id, name, details, status, match_percent, applied_at) " +
+                "VALUES (?, ?, ?, ?, 0, ?)";
+        String[][] samples = {
+                {"Jaspir Pazt", "BSCS Graduate, looking for first job", "Under Review", "2026-11-10 09:15:00"},
+                {"Jush Recintu", "2 years experience as office staff", "Under Review", "2025-11-08 14:30:00"},
+                {"Marcos Makilan Hatdoggy", "Working student, available part-time", "Interview", "2024-11-05 11:00:00"}
+        };
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            for (String[] s : samples) {
+                ps.setInt(1, jobId);
+                ps.setString(2, s[0]);
+                ps.setString(3, s[1]);
+                ps.setString(4, s[2]);
+                ps.setString(5, s[3]);
+                ps.executeUpdate();
+            }
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+        }
+    }
+
+    // jobseek favs
+    public static boolean isFavoriteForSeeker(String email, int jobId) {
+        String sql = "SELECT 1 FROM seeker_favorites WHERE seeker_email = ? AND job_id = ?";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, email.toLowerCase());
+            ps.setInt(2, jobId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+        }
+        return false;
+    }
+
+    public static void toggleFavoriteForSeeker(String email, int jobId) {
+        if (isFavoriteForSeeker(email, jobId)) {
+            String sql = "DELETE FROM seeker_favorites WHERE seeker_email = ? AND job_id = ?";
+            try (Connection conn = DriverManager.getConnection(DB_URL);
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, email.toLowerCase());
+                ps.setInt(2, jobId);
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                System.err.println("DB error: " + e.getMessage());
+            }
+        } else {
+            String sql = "INSERT INTO seeker_favorites (seeker_email, job_id) VALUES (?, ?)";
+            try (Connection conn = DriverManager.getConnection(DB_URL);
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, email.toLowerCase());
+                ps.setInt(2, jobId);
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                System.err.println("DB error: " + e.getMessage());
+            }
         }
     }
 

@@ -1,18 +1,19 @@
 package pages;
 
+import dashboards.Dashboard;
 import users.User;
 
 import javax.swing.*;
 import java.awt.*;
 import java.time.LocalTime;
 
-// commons for both home page
-public abstract class HomePage extends JPanel {
+// commons for both page
+public abstract class Page extends JPanel {
 
     private User user;
     protected JPanel content;
 
-    public HomePage(User user) {
+    public Page(User user) {
         this.user = user;
 
         this.setLayout(new BorderLayout());
@@ -39,6 +40,10 @@ public abstract class HomePage extends JPanel {
         return user;
     }
 
+    protected Dashboard getDashboard() {
+        return (Dashboard) SwingUtilities.getWindowAncestor(this);
+    }
+
     protected String getGreeting() {
         int hour = LocalTime.now().getHour();
         if (hour < 12) {
@@ -60,11 +65,11 @@ public abstract class HomePage extends JPanel {
         heading.setOpaque(false);
 
         JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 32));
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 40));
         titleLabel.setForeground(Color.decode("#0d0d0d"));
 
         JLabel subLabel = new JLabel(subtitle);
-        subLabel.setFont(new Font("Arial", Font.PLAIN, 15));
+        subLabel.setFont(new Font("Arial", Font.PLAIN, 20));
         subLabel.setForeground(Color.decode("#4b5563"));
 
         JPanel textBox = new JPanel();

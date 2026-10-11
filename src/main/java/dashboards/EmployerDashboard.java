@@ -6,9 +6,12 @@ import pages.ApplicantsPage;
 import pages.MessagesPage;
 import pages.NotificationsPage;
 import users.User;
-
 import javax.swing.*;
 import java.awt.*;
+
+//employer pages
+import pages.EmployerHomePage;
+import pages.EmployerJobsPage;
 
 public class EmployerDashboard extends Dashboard {
 
@@ -78,6 +81,15 @@ public void onMenuClick(String name) {
         );
 
         return;
+    public void onMenuClick(String name) {
+        layout.setActive(name);
+        if (name.equals("Home")) {
+            showPage(new EmployerHomePage(getUser()));
+        } else if (name.equals("Jobs")) {
+            showPage(new EmployerJobsPage(getUser()));
+        } else {
+            showPage(new EmployerHomePage(getUser()));
+        }
     }
 
     center.revalidate();

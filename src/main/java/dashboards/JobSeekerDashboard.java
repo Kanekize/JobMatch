@@ -3,6 +3,7 @@ package dashboards;
 import components.Layout;
 import pages.JobSeekerHomePage;
 import pages.MessagesPage;
+import pages.JobSeekerRecommendationsPage;
 import users.User;
 
 import javax.swing.*;
@@ -58,6 +59,15 @@ public void onMenuClick(String name) {
         );
 
         return;
+    public void onMenuClick(String name) {
+        layout.setActive(name);
+        if (name.equals("Home")) {
+            showPage(new JobSeekerHomePage(getUser()));
+        } else if (name.equals("Recommendations")) {
+            showPage(new JobSeekerRecommendationsPage(getUser()));
+        } else {
+            showPage(new JobSeekerHomePage(getUser()));
+        }
     }
 
     center.revalidate();

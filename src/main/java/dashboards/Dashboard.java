@@ -43,6 +43,14 @@ public abstract class Dashboard extends JFrame implements KeyListener {
         this.dispose();
     }
 
+    public void showPage(JPanel page) {
+        JPanel center = layout.getContentPanel();
+        center.removeAll();
+        center.add(page, BorderLayout.CENTER);
+        center.revalidate();
+        center.repaint();
+    }
+
     public void showDashboard() {
         buildContent();
         this.setVisible(true);
