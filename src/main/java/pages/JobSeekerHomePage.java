@@ -7,7 +7,7 @@ import users.User;
 import javax.swing.*;
 import java.awt.*;
 
-public class JobSeekerHomePage extends HomePage {
+public class JobSeekerHomePage extends Page {
 
     public JobSeekerHomePage(User user) {
         super(user);
@@ -22,8 +22,18 @@ public class JobSeekerHomePage extends HomePage {
         counters.add(new StatCard("Active Applications", "0", Color.decode("#2563eb")));
         addBlock(counters, 20);
 
-        addBlock(new SectionPanel("Recommended for You", "View all jobs >", 3, 72, false), 20);
-        addBlock(new SectionPanel("Upcoming Interview", "View all interviews >", 1, 72, false), 20);
-        addBlock(new SectionPanel("Recommended Industries", "View all industries >", 3, 72, true), 0);
+        // click = see all jobs
+        SectionPanel recommended = new SectionPanel("Recommended for You", "View all jobs >", 3, 72, false);
+        recommended.getViewAllButton().addActionListener(e ->
+                getDashboard().showPage(new JobSeekerJobsPage(getUser(), null)));
+        addBlock(recommended, 20);
+
+        SectionPanel interviews = new SectionPanel("Upcoming Interview", "View all interviews >", 1, 72, false);
+        interviews.getViewAllButton().addActionListener(e -> getDashboard().onMenuClick("Interviews"));
+        addBlock(interviews, 20);
+
+        SectionPanel industries = new SectionPanel("Recommended Industries", "View all industries >", 3, 72, true);
+        industries.getViewAllButton().addActionListener(e -> getDashboard().onMenuClick("Recommendations"));
+        addBlock(industries, 0);
     }
 }

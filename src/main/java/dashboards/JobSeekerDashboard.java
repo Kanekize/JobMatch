@@ -2,6 +2,7 @@ package dashboards;
 
 import components.Layout;
 import pages.JobSeekerHomePage;
+import pages.JobSeekerRecommendationsPage;
 import users.User;
 
 import javax.swing.*;
@@ -26,8 +27,14 @@ public class JobSeekerDashboard extends Dashboard {
 
     }
 
-    //for testing
     public void onMenuClick(String name) {
-        System.out.println("Job Seeker clicked: " + name);
+        layout.setActive(name);
+        if (name.equals("Home")) {
+            showPage(new JobSeekerHomePage(getUser()));
+        } else if (name.equals("Recommendations")) {
+            showPage(new JobSeekerRecommendationsPage(getUser()));
+        } else {
+            showPage(new JobSeekerHomePage(getUser()));
+        }
     }
 }

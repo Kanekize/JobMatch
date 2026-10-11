@@ -19,7 +19,7 @@ public class StatCard extends JButton {
         ));
 
         JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("Arial", Font.PLAIN, 13));
+        titleLabel.setFont(new Font("Arial", Font.PLAIN, 16));
         titleLabel.setForeground(Color.decode("#4b5563"));
 
         valueLabel = new JLabel(value);

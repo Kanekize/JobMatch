@@ -1,11 +1,13 @@
 package dashboards;
 
 import components.Layout;
-import pages.EmployerHomePage;
 import users.User;
-
 import javax.swing.*;
 import java.awt.*;
+
+//employer pages
+import pages.EmployerHomePage;
+import pages.EmployerJobsPage;
 
 public class EmployerDashboard extends Dashboard {
 
@@ -25,8 +27,14 @@ public class EmployerDashboard extends Dashboard {
         center.add(new EmployerHomePage(getUser()), BorderLayout.CENTER);
     }
 
-    //fort esting
     public void onMenuClick(String name) {
-        System.out.println("Employer clicked: " + name);
+        layout.setActive(name);
+        if (name.equals("Home")) {
+            showPage(new EmployerHomePage(getUser()));
+        } else if (name.equals("Jobs")) {
+            showPage(new EmployerJobsPage(getUser()));
+        } else {
+            showPage(new EmployerHomePage(getUser()));
+        }
     }
 }
