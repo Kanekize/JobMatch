@@ -1,0 +1,1400 @@
+
+import javax.swing.*;
+import javax.swing.border.*;
+import java.awt.*;
+import java.io.File;
+import java.util.*;
+import java.util.List;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+public class Main extends JFrame {
+    private final CardLayout cards = new CardLayout();
+    private final JPanel pages = new JPanel(cards);
+    private final JPanel progress = new JPanel(new BorderLayout());
+    private final Map<String, JComponent> fields = new LinkedHashMap<>();
+    private final Map<String, String> answers = new LinkedHashMap<>();
+    private final String[] steps = {"Profile Type", "Career Goals", "Skills", "Interest", "Preferences", "Needs", "Review"};
+    private final Color blue = new Color(31, 101, 238);
+    private final Color paleBlue = new Color(235, 243, 255);
+    private final Color ink = new Color(25, 31, 42);
+    private final Color muted = new Color(105, 112, 125);
+    private int step = 0;
+    private String userType = "Student";
+    private File resumeFile;
+    private JLabel resumeLabel;
+    private final ButtonGroup typeGroup = new ButtonGroup();
+    private final Map<String, JRadioButton> typeButtons = new LinkedHashMap<>();
+    private final Map<String, JPanel> reviewCards = new LinkedHashMap<>();
+    private JPanel needsContent;
+    private JPanel reviewContent;
+    private JPanel profileGrid;
+
+    public Main() {
+        setTitle("JobMatch Assessment");
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setSize(1000, 800);
+        setMinimumSize(new Dimension(850, 680));
+        setLocationRelativeTo(null);
+        getContentPane().setBackground(new Color(241, 245, 250));
+        setLayout(new BorderLayout());
+
+        JPanel main = new JPanel(new BorderLayout(0, 12));
+        main.setOpaque(false);
+        main.setBorder(new EmptyBorder(22, 28, 22, 28));
+
+        JPanel heading = new JPanel();
+        heading.setOpaque(false);
+        heading.setLayout(new BoxLayout(heading, BoxLayout.Y_AXIS));
+
+        JLabel title = new JLabel("JobMatch Assessment");
+        title.setFont(new Font("Arial", Font.BOLD, 28));
+
+        JLabel subtitle = new JLabel("Helps us understand your skills, interests, preferences, and needs so we can identify opportunities that better match your profile");
+        subtitle.setFont(new Font("Arial", Font.PLAIN, 12));
+        subtitle.setForeground(new Color(95, 101, 112));
+
+        heading.add(title);
+        heading.add(Box.createVerticalStrut(5));
+        heading.add(subtitle);
+
+        progress.setOpaque(false);
+        progress.setBorder(new EmptyBorder(5, 0, 0, 0));
+        pages.setOpaque(false);
+
+        buildProfilePage();
+        buildCareerPage();
+        buildSkillsPage();
+        buildInterestPage();
+        buildPreferencesPage();
+        buildNeedsPage();
+        buildReviewPage();
+
+        JPanel center = new JPanel(new BorderLayout(0, 12));
+        center.setOpaque(false);
+        center.add(progress, BorderLayout.NORTH);
+        center.add(pages, BorderLayout.CENTER);
+
+        main.add(heading, BorderLayout.NORTH);
+        main.add(center, BorderLayout.CENTER);
+        add(main, BorderLayout.CENTER);
+
+        updateProgress();
+        showStep(0);
+    }
+
+    private JPanel makePage(String title, String description, String key, JPanel content) {
+        JPanel outer = new JPanel(new BorderLayout(0, 12));
+        outer.setBackground(Color.WHITE);
+        outer.setBorder(new CompoundBorder(
+                new LineBorder(new Color(218, 222, 230), 1, true),
+                new EmptyBorder(20, 22, 16, 22)
+        ));
+
+        JPanel heading = new JPanel();
+        heading.setOpaque(false);
+        heading.setLayout(new BoxLayout(heading, BoxLayout.Y_AXIS));
+
+        JLabel h = new JLabel(title);
+        h.setFont(new Font("Arial", Font.BOLD, 21));
+        h.setForeground(ink);
+        heading.add(h);
+
+        if (description != null && !description.isBlank()) {
+            JLabel d = new JLabel(description);
+            d.setFont(new Font("Arial", Font.PLAIN, 12));
+            d.setForeground(muted);
+            heading.add(Box.createVerticalStrut(5));
+            heading.add(d);
+        }
+
+        JScrollPane scroll = new JScrollPane(content);
+        scroll.setBorder(null);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+
+        outer.add(heading, BorderLayout.NORTH);
+        outer.add(scroll, BorderLayout.CENTER);
+        outer.add(navButtons(), BorderLayout.SOUTH);
+        pages.add(outer, key);
+
+        return outer;
+    }
+
+    private JPanel content() {
+        JPanel p = new JPanel();
+        p.setOpaque(false);
+        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+        return p;
+    }
+
+    private JPanel navButtons() {
+        JPanel p = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        p.setOpaque(false);
+
+        JButton back = new JButton("Back");
+        JButton next = new JButton("Continue");
+
+        styleButton(back, false);
+        styleButton(next, true);
+
+        back.addActionListener(e -> showStep(Math.max(0, step - 1)));
+
+        next.addActionListener(e -> {
+            if (!validateStep()) {
+                return;
+            }
+
+            saveAnswers();
+
+            
+        if (step < 6) {
+            showStep(step + 1);
+        } else {
+            if (saveAssessmentToDatabase()) {
+                JOptionPane.showMessageDialog(
+                    this,
+                    "Your assessment is complete.",
+                    "JobMatch Assessment",
+                    JOptionPane.INFORMATION_MESSAGE
+                );
+            }
+        }
+
+        });
+
+        p.add(back);
+        p.add(next);
+
+        return p;
+    }
+
+    private void styleButton(JButton b, boolean primary) {
+        b.setFont(new Font("Arial", Font.PLAIN, 12));
+        b.setFocusPainted(false);
+        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        b.setBorder(new EmptyBorder(9, 22, 9, 22));
+        b.setOpaque(true);
+        b.setBackground(primary ? blue : new Color(235, 237, 241));
+        b.setForeground(primary ? Color.WHITE : ink);
+    }
+
+    private JPanel buildProfilePage() {
+        JPanel c = content();
+
+        JPanel resumePanel = new JPanel(new BorderLayout(12, 8));
+        resumePanel.setOpaque(true);
+        resumePanel.setBackground(paleBlue);
+        resumePanel.setBorder(new CompoundBorder(
+                new LineBorder(new Color(198, 216, 250), 1, true),
+                new EmptyBorder(14, 14, 14, 14)
+        ));
+
+        JPanel resumeText = new JPanel();
+        resumeText.setOpaque(false);
+        resumeText.setLayout(new BoxLayout(resumeText, BoxLayout.Y_AXIS));
+
+        JLabel resumeTitle = new JLabel("Have a resume?");
+        resumeTitle.setFont(new Font("Arial", Font.BOLD, 14));
+        resumeTitle.setForeground(ink);
+
+        JLabel resumeDescription = new JLabel(
+                "<html><div style='width:480px'>Choose a resume file from your computer, " +
+                "or skip this option and answer the assessment below.</div></html>"
+        );
+        resumeDescription.setFont(new Font("Arial", Font.PLAIN, 12));
+        resumeDescription.setForeground(muted);
+
+        resumeLabel = new JLabel("No resume selected");
+        resumeLabel.setFont(new Font("Arial", Font.PLAIN, 11));
+        resumeLabel.setForeground(muted);
+
+        resumeText.add(resumeTitle);
+        resumeText.add(Box.createVerticalStrut(5));
+        resumeText.add(resumeDescription);
+        resumeText.add(Box.createVerticalStrut(7));
+        resumeText.add(resumeLabel);
+
+        JButton uploadButton = new JButton("Upload Resume");
+        styleButton(uploadButton, true);
+        uploadButton.addActionListener(e -> chooseResume());
+
+        resumePanel.add(resumeText, BorderLayout.CENTER);
+        resumePanel.add(uploadButton, BorderLayout.EAST);
+
+        c.add(resumePanel);
+        c.add(Box.createVerticalStrut(18));
+        c.add(label("Or continue by answering the assessment."));
+        c.add(Box.createVerticalStrut(8));
+
+        profileGrid = new JPanel(new GridLayout(2, 2, 14, 14));
+        profileGrid.setOpaque(false);
+
+        addTypeCard(profileGrid, "Student",
+                "Currently studying or looking for internships and flexible opportunities.", "🎓");
+        addTypeCard(profileGrid, "Regular Applicant",
+                "Looking for employment based on your skills and professional goals.", "▣");
+        addTypeCard(profileGrid, "Senior Citizen",
+                "Looking for opportunities that fit your experience and preferred working conditions.", "♙");
+        addTypeCard(profileGrid, "PWD (Person with Disability)",
+                "Looking for opportunities that consider your skills and workplace accessibility needs.", "♿");
+
+        c.add(profileGrid);
+
+        return makePage(
+                "Which best describes you?",
+                "Choose the profile that fits you best.",
+                "0",
+                c
+        );
+    }
+
+    private void chooseResume() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Choose Your Resume");
+        chooser.setAcceptAllFileFilterUsed(false);
+        chooser.addChoosableFileFilter(
+                new javax.swing.filechooser.FileNameExtensionFilter(
+                        "Resume Files (PDF, DOC, DOCX)", "pdf", "doc", "docx"
+                )
+        );
+
+        int result = chooser.showOpenDialog(this);
+
+        if (result == JFileChooser.APPROVE_OPTION) {
+            resumeFile = chooser.getSelectedFile();
+            resumeLabel.setText("Selected: " + resumeFile.getName());
+            resumeLabel.setForeground(blue);
+
+            answers.put("Resume File", resumeFile.getName());
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Your resume file has been selected.\n\n" +
+                    "This version can select a resume, but it does not yet read the file's contents.\n" +
+                    "You can still continue with the assessment.",
+                    "Resume Selected",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        }
+    }
+
+    private void addTypeCard(JPanel grid, String type, String desc, String symbol) {
+        JRadioButton radio = new JRadioButton();
+        radio.setOpaque(false);
+
+        typeGroup.add(radio);
+        typeButtons.put(type, radio);
+        radio.setSelected(type.equals(userType));
+
+        JPanel card = new JPanel(new BorderLayout(6, 8));
+
+        JLabel icon = new JLabel(symbol);
+        icon.setFont(new Font("Arial", Font.PLAIN, 30));
+
+        JPanel top = new JPanel(new BorderLayout());
+        top.setOpaque(false);
+        top.add(icon, BorderLayout.WEST);
+        top.add(radio, BorderLayout.EAST);
+
+        JLabel name = new JLabel(type);
+        name.setFont(new Font("Arial", Font.BOLD, 15));
+
+        JLabel description = new JLabel(
+                "<html><div style='width:290px'>" + desc + "</div></html>"
+        );
+        description.setFont(new Font("Arial", Font.PLAIN, 12));
+
+        JPanel text = new JPanel();
+        text.setOpaque(false);
+        text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
+        text.add(name);
+        text.add(Box.createVerticalStrut(7));
+        text.add(description);
+
+        card.add(top, BorderLayout.NORTH);
+        card.add(text, BorderLayout.CENTER);
+
+        radio.addActionListener(e -> selectType(type));
+
+        card.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                radio.doClick();
+            }
+        });
+
+        grid.add(card);
+        styleTypeCards();
+    }
+
+    private void selectType(String type) {
+        userType = type;
+
+        for (Map.Entry<String, JRadioButton> e : typeButtons.entrySet()) {
+            e.getValue().setSelected(e.getKey().equals(type));
+        }
+
+        styleTypeCards();
+        rebuildNeeds();
+    }
+
+    private void styleTypeCards() {
+        if (profileGrid == null) {
+            return;
+        }
+
+        Component[] list = profileGrid.getComponents();
+        String[] types = {
+                "Student",
+                "Regular Applicant",
+                "Senior Citizen",
+                "PWD (Person with Disability)"
+        };
+
+        for (int i = 0; i < list.length; i++) {
+            JPanel card = (JPanel) list[i];
+            boolean selected = types[i].equals(userType);
+
+            card.setBackground(selected ? paleBlue : Color.WHITE);
+            card.setOpaque(true);
+            card.setBorder(new CompoundBorder(
+                    new LineBorder(
+                            selected ? blue : new Color(190, 196, 207),
+                            1,
+                            true
+                    ),
+                    new EmptyBorder(15, 16, 15, 16)
+            ));
+        }
+    }
+
+    private JPanel buildCareerPage() {
+        JPanel c = content();
+
+        c.add(label("1. What type of opportunity are you currently looking for? Choose one."));
+        c.add(choices("opportunity", new String[]{
+                "Full-time", "Part-time", "Internship", "Freelance / Contract", "Open to Any"
+        }, 3));
+
+        c.add(gap());
+        c.add(label("2. Which industries interest you? Select all that apply."));
+        c.add(checks("industries", new String[]{
+                "Information Technology", "Business Administration", "Accounting & Finance",
+                "Customer Service", "Sales & Marketing", "Creative & Design", "Education",
+                "Hospitality", "Healthcare & Caregiving", "Retail & Cashiering",
+                "Skilled & Technical Work", "Transportation & Delivery", "Other"
+        }, 3));
+
+        c.add(gap());
+        c.add(label("3. Which job roles are you interested in? Choose a suggestion or type your own."));
+        c.add(combo("jobRoles", new String[]{
+                "Software Developer", "Web Developer", "IT Support", "Data Entry",
+                "Customer Service Representative", "Office Staff", "Sales Associate",
+                "Graphic Designer", "Teacher", "Administrative Assistant", "Other"
+        }));
+
+        c.add(gap());
+        c.add(label("4. Are you open to related opportunities that strongly match your skills?"));
+        c.add(choices("relatedOpportunities", new String[]{"Yes", "Maybe", "No"}, 3));
+
+        return makePage(
+                "Tell us what you're looking for",
+                "Choose your career goals and the types of opportunities you would consider.",
+                "1",
+                c
+        );
+    }
+
+    private JPanel buildSkillsPage() {
+        JPanel c = content();
+
+        c.add(label("1. What skills do you have? Select all that apply."));
+        c.add(checks("skills", new String[]{
+                "Communication", "Customer Service", "Computer Skills", "Microsoft Office",
+                "Sales", "Leadership", "Organization", "Problem Solving", "Teamwork",
+                "Time Management", "Programming", "Data Entry", "Writing", "Design", "Other"
+        }, 3));
+
+        c.add(gap());
+        c.add(label("2. What is your strongest skill?"));
+        c.add(combo("strongestSkill", new String[]{
+                "Communication", "Customer Service", "Computer Skills", "Microsoft Office",
+                "Sales", "Leadership", "Organization", "Problem Solving", "Teamwork",
+                "Time Management", "Programming", "Data Entry", "Writing", "Design", "Other"
+        }));
+
+        c.add(gap());
+        c.add(label("3. How would you rate your current skill level?"));
+        c.add(choices("skillLevel", new String[]{"Beginner", "Intermediate", "Advanced"}, 3));
+
+        c.add(gap());
+        c.add(label("4. Which languages can you speak? Select all that apply."));
+        c.add(checks("languages", new String[]{
+                "English", "Filipino", "Spanish", "Chinese", "Japanese", "Korean",
+                "French", "German", "Arabic", "Other Philippine Language", "Other"
+        }, 3));
+
+        c.add(gap());
+        c.add(label("5. What is your most recent job or role? Choose a suggestion or type your own."));
+        c.add(combo("recentJob", new String[]{
+                "No previous job", "Cashier", "Sales Associate",
+                "Customer Service Representative", "Office Staff", "Teacher",
+                "Administrative Assistant", "Service Crew", "Driver", "Freelancer",
+                "Manager / Supervisor", "Other"
+        }));
+
+        c.add(gap());
+        c.add(label("6. How much work experience do you have?"));
+        c.add(choices("experience", new String[]{
+                "No experience", "Less than 2 years", "2–4 years", "5+ years"
+        }, 4));
+
+        c.add(gap());
+        c.add(label("7. Do you have any certificates, training, or other qualifications? (Optional)"));
+        c.add(text("qualifications", "Enter certificates, training, or other qualifications"));
+
+        return makePage(
+                "Tell us about your skills",
+                "This helps us find roles that match what you can do.",
+                "2",
+                c
+        );
+    }
+
+    private JPanel buildInterestPage() {
+        JPanel c = content();
+
+        c.add(label("1. What type of work are you interested in? Select all that apply."));
+        c.add(checks("workTypes", new String[]{
+                "Office & Administration", "Retail & Cashiering", "Sales & Marketing",
+                "Customer Service", "Information Technology", "Design & Creative",
+                "Education & Teaching", "Accounting & Finance", "Healthcare & Caregiving",
+                "Food & Hospitality", "Skilled & Technical Work", "Transportation & Delivery",
+                "Production & Manufacturing", "Cleaning & Maintenance", "Agriculture",
+                "Government & Public Service", "Other"
+        }, 3));
+
+        c.add(gap());
+        c.add(label("2. What kind of work would you enjoy? Select all that apply."));
+        c.add(checks("workEnjoy", new String[]{
+                "Working with people", "Helping others", "Working with numbers",
+                "Working with computers", "Organizing information",
+                "Selling products or services", "Creating or designing things",
+                "Teaching or mentoring", "Working with tools or equipment",
+                "Working independently", "Working as part of a team", "Working outdoors",
+                "Not sure", "Other"
+        }, 2));
+
+        c.add(gap());
+        c.add(label("3. What matters most to you in a job? Select all that apply."));
+        c.add(checks("jobMotivators", new String[]{
+                "Stable income", "Flexible schedule", "Learning new skills", "Career growth",
+                "Helping people", "Work-life balance", "Working close to home", "Remote work",
+                "Supportive workplace", "Other"
+        }, 3));
+
+        c.add(gap());
+        c.add(label("4. Add another interest or type of work (optional)."));
+        c.add(text("customInterest", "Type your answer here"));
+
+        return makePage(
+                "What interests you?",
+                "Select the kinds of work and workplace goals that fit you.",
+                "3",
+                c
+        );
+    }
+
+    private JPanel buildPreferencesPage() {
+        JPanel c = content();
+
+        c.add(label("1. Desired employment type"));
+        c.add(choices("employmentType", new String[]{
+                "Full-time", "Part-time", "Project-based", "Internship", "Temporary", "No preference"
+        }, 3));
+
+        c.add(gap());
+        c.add(label("2. Preferred work setup"));
+        c.add(choices("workSetup", new String[]{
+                "On-site", "Hybrid", "Remote / Online", "No preference"
+        }, 4));
+
+        c.add(gap());
+        c.add(label("3. Preferred shift"));
+        c.add(choices("shift", new String[]{
+                "Day shift", "Night shift", "Flexible hours", "No preference"
+        }, 4));
+
+        c.add(gap());
+        c.add(label("4. How many hours can you work in a shift?"));
+        c.add(choices("hoursPerShift", new String[]{
+                "2–3 hours", "4–6 hours", "7–8 hours", "9+ hours", "No preference"
+        }, 3));
+
+        c.add(gap());
+        c.add(label("5. How many hours can you work per week?"));
+        c.add(choices("hoursPerWeek", new String[]{
+                "Under 10", "10–20", "21–30", "31–40", "Flexible"
+        }, 3));
+
+        c.add(gap());
+        c.add(label("6. Where would you prefer to work?"));
+        c.add(choices("location", new String[]{
+                "Near my location", "Within my city", "Anywhere in the Philippines",
+                "Remote / Online", "No preference"
+        }, 3));
+
+        c.add(gap());
+        c.add(label("7. Do you need the schedule to fit around other responsibilities? (Optional)"));
+        c.add(text("scheduleDetails", "For example, classes, caregiving, or another job"));
+
+        return makePage(
+                "Set your work preferences",
+                "Choose the schedule and work setup that suits you.",
+                "4",
+                c
+        );
+    }
+
+    private JPanel buildNeedsPage() {
+        needsContent = content();
+        rebuildNeeds();
+
+        return makePage(
+                "Tell us what you need",
+                "These answers help us suggest opportunities that fit your situation. Optional details can be left blank.",
+                "5",
+                needsContent
+        );
+    }
+
+    private void rebuildNeeds() {
+        if (needsContent == null) {
+            return;
+        }
+
+        String[] keys = {
+                "availability", "classSchedule", "educationLevel", "studentSupport",
+                "accommodations", "workEnvironment", "otherAccommodation",
+                "accessibilityDetails", "supportNeeded", "preferredTasks",
+                "seniorEmployment", "seniorSchedule", "seniorWorkplace",
+                "seniorWorkload", "seniorSupport", "seniorDetails",
+                "regularPurpose", "desiredPosition", "regularEnvironment", "regularNeeds"
+        };
+
+        for (String key : keys) {
+            fields.remove(key);
+        }
+
+        needsContent.removeAll();
+
+        if (userType.equals("Student")) {
+            needsContent.add(label("1. When are you usually available? Select all that apply."));
+            needsContent.add(checks("availability", new String[]{
+                    "Weekdays", "Weekends", "After classes", "Morning", "Afternoon",
+                    "Evening", "Flexible"
+            }, 3));
+
+            needsContent.add(gap());
+            needsContent.add(label("2. Should opportunities fit around your class schedule?"));
+            needsContent.add(choices("classSchedule", new String[]{
+                    "Yes", "No", "No preference"
+            }, 3));
+
+            needsContent.add(gap());
+            needsContent.add(label("3. What is your current education level?"));
+            needsContent.add(choices("educationLevel", new String[]{
+                    "Senior high school", "College student", "Graduate", "Other"
+            }, 4));
+
+            needsContent.add(gap());
+            needsContent.add(label("4. What support would help you get started? Select all that apply."));
+            needsContent.add(checks("studentSupport", new String[]{
+                    "Training provided", "Internship experience", "Flexible schedule",
+                    "Entry-level role", "Mentorship", "No preference", "Other"
+            }, 3));
+
+        } else if (userType.equals("PWD (Person with Disability)")) {
+            needsContent.add(label("1. What workplace support or adjustments would help you work comfortably? Select all that apply."));
+            needsContent.add(checks("accommodations", new String[]{
+                    "Wheelchair-accessible workplace", "Accessible transportation / location",
+                    "Screen reader or assistive technology", "Ergonomic workstation",
+                    "Flexible working hours", "Additional rest breaks", "Remote / Online work",
+                    "Accessible facilities", "Written instructions", "No specific adjustment", "Other"
+            }, 2));
+
+            needsContent.add(gap());
+            needsContent.add(label("2. What type of work environment do you prefer?"));
+            needsContent.add(choices("workEnvironment", new String[]{
+                    "Independent work", "Team-based work", "Quiet environment",
+                    "Customer-facing environment", "Flexible environment", "No preference"
+            }, 3));
+
+            needsContent.add(gap());
+            needsContent.add(label("3. Are there any tasks or workplace situations you would prefer to avoid? (Optional)"));
+            needsContent.add(text("preferredTasks", "Share only what you feel comfortable sharing"));
+
+            needsContent.add(gap());
+            needsContent.add(label("4. What accessibility features are important to you? (Optional)"));
+            needsContent.add(text("accessibilityDetails", "For example, step-free access, captions, or assistive tools"));
+
+            needsContent.add(gap());
+            needsContent.add(label("5. Any other workplace support or adjustment you would like us to consider? (Optional)"));
+            needsContent.add(area("otherAccommodation", "Add any details you would like the employer to consider"));
+
+            needsContent.add(gap());
+            needsContent.add(label("6. Is there anything else that would help you feel supported at work? (Optional)"));
+            needsContent.add(area("supportNeeded", "Additional details (optional)"));
+
+        } else if (userType.equals("Senior Citizen")) {
+            needsContent.add(label("1. What employment type are you most interested in?"));
+            needsContent.add(choices("seniorEmployment", new String[]{
+                    "Full-time", "Part-time", "Project-based", "Consulting",
+                    "Mentoring / Advisory", "Temporary", "Any suitable opportunity", "Other"
+            }, 3));
+
+            needsContent.add(gap());
+            needsContent.add(label("2. What schedule do you prefer?"));
+            needsContent.add(choices("seniorSchedule", new String[]{
+                    "Morning", "Afternoon", "Flexible", "No preference", "Other"
+            }, 3));
+
+            needsContent.add(gap());
+            needsContent.add(label("3. Which workplace preferences are important to you? Select all that apply."));
+            needsContent.add(checks("seniorWorkplace", new String[]{
+                    "Flexible working hours", "Part-time hours", "Remote / Online work",
+                    "Comfortable workstation", "Accessible workplace", "Shorter working hours",
+                    "Less physically demanding work", "No special preference", "Other"
+            }, 2));
+
+            needsContent.add(gap());
+            needsContent.add(label("4. What workload would suit you best?"));
+            needsContent.add(choices("seniorWorkload", new String[]{
+                    "Light workload", "Moderate workload", "Regular workload",
+                    "Flexible depending on role", "No preference"
+            }, 3));
+
+            needsContent.add(gap());
+            needsContent.add(label("5. What kind of support would help you succeed at work? Select all that apply."));
+            needsContent.add(checks("seniorSupport", new String[]{
+                    "Training for new tools", "Refresher training", "Clear written instructions",
+                    "Mentoring or advisory roles", "Comfortable breaks", "Flexible schedule",
+                    "No preference", "Other"
+            }, 2));
+
+            needsContent.add(gap());
+            needsContent.add(label("6. Any other preferences or workplace needs you want us to consider? (Optional)"));
+            needsContent.add(area("seniorDetails", "Add details here if you wish"));
+
+        } else {
+            needsContent.add(label("1. What are you currently looking for?"));
+            needsContent.add(choices("regularPurpose", new String[]{
+                    "A new job", "A career change", "Additional income",
+                    "Temporary work", "Any suitable opportunity", "Other"
+            }, 3));
+
+            needsContent.add(gap());
+            needsContent.add(label("2. What position are you interested in?"));
+            needsContent.add(text("desiredPosition", "Enter a position, or type None if you're not sure"));
+
+            needsContent.add(gap());
+            needsContent.add(label("3. What workplace environment helps you do your best work?"));
+            needsContent.add(choices("regularEnvironment", new String[]{
+                    "Independent", "Team-based", "Quiet", "Customer-facing",
+                    "Flexible", "No preference"
+            }, 3));
+
+            needsContent.add(gap());
+            needsContent.add(label("4. Is there anything else you need from a workplace? (Optional)"));
+            needsContent.add(area("regularNeeds", "Share any preferences or requirements (optional)"));
+        }
+
+        needsContent.revalidate();
+        needsContent.repaint();
+    }
+
+    private JPanel buildReviewPage() {
+        reviewContent = new JPanel(new GridLayout(0, 2, 10, 10));
+        reviewContent.setOpaque(false);
+
+        return makePage(
+                "Review your assessment",
+                "Check your answers before JobMatch generates your recommendations.",
+                "6",
+                reviewContent
+        );
+    }
+
+    private boolean validateStep() {
+        String[] requiredKeys;
+
+        switch (step) {
+            case 0:
+                if (userType == null || userType.isBlank()) {
+                    return showValidationError("Please select a profile type.");
+                }
+                return true;
+
+            case 1:
+                requiredKeys = new String[]{
+                        "opportunity", "industries", "jobRoles", "relatedOpportunities"
+                };
+                break;
+
+            case 2:
+                requiredKeys = new String[]{
+                        "skills", "strongestSkill", "skillLevel",
+                        "languages", "recentJob", "experience"
+                };
+                break;
+
+            case 3:
+                requiredKeys = new String[]{
+                        "workTypes", "workEnjoy", "jobMotivators"
+                };
+                break;
+
+            case 4:
+                requiredKeys = new String[]{
+                        "employmentType", "workSetup", "shift",
+                        "hoursPerShift", "hoursPerWeek", "location"
+                };
+                break;
+
+            case 5:
+                if (userType.equals("Student")) {
+                    requiredKeys = new String[]{
+                            "availability", "classSchedule",
+                            "educationLevel", "studentSupport"
+                    };
+                } else if (userType.equals("PWD (Person with Disability)")) {
+                    requiredKeys = new String[]{
+                            "accommodations", "workEnvironment"
+                    };
+                } else if (userType.equals("Senior Citizen")) {
+                    requiredKeys = new String[]{
+                            "seniorEmployment", "seniorSchedule",
+                            "seniorWorkplace", "seniorWorkload", "seniorSupport"
+                    };
+                } else {
+                    requiredKeys = new String[]{
+                            "regularPurpose", "desiredPosition", "regularEnvironment"
+                    };
+                }
+                break;
+
+            default:
+                return true;
+        }
+
+        for (String key : requiredKeys) {
+            if (!isAnswered(key)) {
+                return showValidationError(
+                        "Please answer all required questions before continuing.\n\nMissing answer: "
+                                + pretty(key)
+                );
+            }
+        }
+
+        return true;
+    }
+
+    private boolean showValidationError(String message) {
+        JOptionPane.showMessageDialog(
+                this,
+                message,
+                "Required Answer Missing",
+                JOptionPane.WARNING_MESSAGE
+        );
+        return false;
+    }
+
+    private boolean isAnswered(String key) {
+        JComponent component = fields.get(key);
+
+        if (component == null) {
+            return false;
+        }
+
+        if (component instanceof JComboBox) {
+            JComboBox<?> combo = (JComboBox<?>) component;
+            Object value = combo.isEditable()
+                    ? combo.getEditor().getItem()
+                    : combo.getSelectedItem();
+
+            return value != null && !value.toString().trim().isEmpty();
+        }
+
+        if (component instanceof JTextField) {
+            return !((JTextField) component).getText().trim().isEmpty();
+        }
+
+        if (component instanceof JTextArea) {
+            return !((JTextArea) component).getText().trim().isEmpty();
+        }
+
+        if (component instanceof JPanel) {
+            for (Component child : ((JPanel) component).getComponents()) {
+                if (child instanceof AbstractButton
+                        && ((AbstractButton) child).isSelected()) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private JLabel label(String text) {
+        JLabel l = new JLabel(text);
+        l.setFont(new Font("Arial", Font.BOLD, 13));
+        l.setForeground(new Color(34, 40, 50));
+        l.setBorder(new EmptyBorder(0, 0, 7, 0));
+        l.setAlignmentX(Component.LEFT_ALIGNMENT);
+        return l;
+    }
+
+    private Component gap() {
+        return Box.createVerticalStrut(15);
+    }
+
+    private JPanel choices(String key, String[] options, int columns) {
+        JPanel p = new JPanel(new GridLayout(0, columns, 8, 8));
+        p.setOpaque(false);
+
+        ButtonGroup group = new ButtonGroup();
+        List<JToggleButton> buttons = new ArrayList<>();
+
+        for (String option : options) {
+            JToggleButton b = new JToggleButton(option);
+            b.setFont(new Font("Arial", Font.PLAIN, 12));
+            b.setFocusPainted(false);
+            b.setOpaque(true);
+            b.setMargin(new Insets(10, 8, 10, 8));
+
+            group.add(b);
+            buttons.add(b);
+            b.addActionListener(e -> refreshChoiceButtons(buttons));
+            p.add(b);
+        }
+
+        refreshChoiceButtons(buttons);
+        fields.put(key, p);
+        p.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        return p;
+    }
+
+    private void refreshChoiceButtons(List<JToggleButton> buttons) {
+        for (JToggleButton b : buttons) {
+            boolean selected = b.isSelected();
+
+            b.setBackground(selected ? paleBlue : Color.WHITE);
+            b.setForeground(selected ? blue : ink);
+            b.setBorder(new CompoundBorder(
+                    new LineBorder(
+                            selected ? blue : new Color(213, 218, 227),
+                            1,
+                            true
+                    ),
+                    new EmptyBorder(5, 7, 5, 7)
+            ));
+        }
+    }
+
+    private JPanel checks(String key, String[] options, int columns) {
+        JPanel p = new JPanel(new GridLayout(0, columns, 10, 10));
+        p.setOpaque(false);
+        p.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        for (String option : options) {
+            JCheckBox b = new JCheckBox(option);
+            b.setFont(new Font("Arial", Font.PLAIN, 12));
+            b.setFocusPainted(false);
+            b.setOpaque(true);
+            b.setBackground(Color.WHITE);
+            b.setForeground(ink);
+            b.setHorizontalAlignment(SwingConstants.LEFT);
+            b.setIconTextGap(9);
+            b.setMargin(new Insets(0, 0, 0, 0));
+            b.setBorder(new CompoundBorder(
+                    new LineBorder(new Color(213, 218, 227), 1, true),
+                    new EmptyBorder(10, 11, 10, 11)
+            ));
+            b.setPreferredSize(new Dimension(150, 44));
+
+            b.addActionListener(e -> {
+                boolean selected = b.isSelected();
+
+                b.setBackground(selected ? paleBlue : Color.WHITE);
+                b.setForeground(selected ? blue : ink);
+                b.setBorder(new CompoundBorder(
+                        new LineBorder(
+                                selected ? blue : new Color(213, 218, 227),
+                                1,
+                                true
+                        ),
+                        new EmptyBorder(10, 11, 10, 11)
+                ));
+            });
+
+            p.add(b);
+        }
+
+        fields.put(key, p);
+        return p;
+    }
+
+    private JComboBox<String> combo(String key, String[] options) {
+        JComboBox<String> b = new JComboBox<>(options);
+        b.setEditable(true);
+        b.setSelectedIndex(-1);
+        b.getEditor().setItem("");
+        b.setFont(new Font("Arial", Font.PLAIN, 12));
+        b.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
+        b.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        fields.put(key, b);
+
+        return b;
+    }
+
+    private JTextField text(String key, String placeholder) {
+        JTextField f = new JTextField();
+        f.setFont(new Font("Arial", Font.PLAIN, 12));
+        f.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
+        f.setAlignmentX(Component.LEFT_ALIGNMENT);
+        f.setBorder(new CompoundBorder(
+                new LineBorder(new Color(211, 216, 225), 1, true),
+                new EmptyBorder(7, 9, 7, 9)
+        ));
+        f.setToolTipText(placeholder);
+
+        fields.put(key, f);
+
+        return f;
+    }
+
+    private JScrollPane area(String key, String placeholder) {
+        JTextArea area = new JTextArea(3, 20);
+        area.setFont(new Font("Arial", Font.PLAIN, 12));
+        area.setLineWrap(true);
+        area.setWrapStyleWord(true);
+        area.setBorder(new EmptyBorder(7, 9, 7, 9));
+        area.setToolTipText(placeholder);
+
+        JScrollPane scroll = new JScrollPane(area);
+        scroll.setAlignmentX(Component.LEFT_ALIGNMENT);
+        scroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 90));
+        scroll.setBorder(new LineBorder(new Color(211, 216, 225), 1, true));
+
+        fields.put(key, area);
+
+        return scroll;
+    }
+
+    private void updateProgress() {
+        progress.removeAll();
+
+        JLabel stepLabel = new JLabel("Step " + (step + 1) + " of 7");
+        stepLabel.setFont(new Font("Arial", Font.PLAIN, 11));
+
+        JPanel track = new JPanel(new GridLayout(1, 7, 0, 0));
+        track.setOpaque(false);
+
+        for (int i = 0; i < steps.length; i++) {
+            JPanel item = new JPanel(new BorderLayout(0, 4));
+            item.setOpaque(false);
+
+            JLabel circle = new JLabel(String.valueOf(i + 1), SwingConstants.CENTER);
+            circle.setPreferredSize(new Dimension(30, 30));
+            circle.setOpaque(true);
+            circle.setFont(new Font("Arial", Font.BOLD, 11));
+            circle.setForeground(i <= step ? Color.WHITE : new Color(75, 80, 91));
+            circle.setBackground(i <= step ? blue : new Color(194, 198, 207));
+            circle.setBorder(new LineBorder(circle.getBackground(), 1, true));
+
+            JLabel name = new JLabel(steps[i], SwingConstants.CENTER);
+            name.setFont(new Font("Arial", Font.PLAIN, 10));
+            name.setForeground(i == step ? blue : muted);
+
+            JPanel wrap = new JPanel(new GridBagLayout());
+            wrap.setOpaque(false);
+            wrap.add(circle);
+
+            item.add(wrap, BorderLayout.CENTER);
+            item.add(name, BorderLayout.SOUTH);
+            track.add(item);
+        }
+
+        JPanel line = new JPanel() {
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setStroke(new BasicStroke(3));
+
+                int y = 15;
+                int start = getWidth() / 14;
+                int end = getWidth() - start;
+
+                g2.setColor(new Color(194, 198, 207));
+                g2.drawLine(start, y, end, y);
+
+                g2.setColor(blue);
+                g2.drawLine(
+                        start,
+                        y,
+                        start + (int) ((end - start) * step / 6.0),
+                        y
+                );
+
+                g2.dispose();
+            }
+        };
+
+        line.setOpaque(false);
+        line.setPreferredSize(new Dimension(100, 35));
+        line.setLayout(new BorderLayout());
+        line.add(track, BorderLayout.CENTER);
+
+        progress.add(stepLabel, BorderLayout.NORTH);
+        progress.add(line, BorderLayout.CENTER);
+        progress.revalidate();
+        progress.repaint();
+    }
+
+    private void showStep(int next) {
+        saveAnswers();
+
+        step = next;
+        updateProgress();
+        cards.show(pages, String.valueOf(step));
+
+        if (step == 6) {
+            updateReview();
+        }
+    }
+
+    private void saveAnswers() {
+        answers.put("Profile Type", userType);
+
+        if (resumeFile != null) {
+            answers.put("Resume File", resumeFile.getName());
+        }
+
+        for (Map.Entry<String, JComponent> entry : fields.entrySet()) {
+            String key = entry.getKey();
+            JComponent component = entry.getValue();
+
+            if (component instanceof JComboBox) {
+                JComboBox<?> combo = (JComboBox<?>) component;
+
+                Object value = combo.isEditable()
+                        ? combo.getEditor().getItem()
+                        : combo.getSelectedItem();
+
+                if (value != null && !value.toString().trim().isEmpty()) {
+                    answers.put(key, value.toString().trim());
+                } else {
+                    answers.remove(key);
+                }
+
+            } else if (component instanceof JTextField) {
+                String value = ((JTextField) component).getText().trim();
+
+                if (!value.isEmpty()) {
+                    answers.put(key, value);
+                } else {
+                    answers.remove(key);
+                }
+
+            } else if (component instanceof JTextArea) {
+                String value = ((JTextArea) component).getText().trim();
+
+                if (!value.isEmpty()) {
+                    answers.put(key, value);
+                } else {
+                    answers.remove(key);
+                }
+
+            } else if (component instanceof JPanel) {
+                List<String> selected = new ArrayList<>();
+
+                for (Component child : ((JPanel) component).getComponents()) {
+                    if (child instanceof AbstractButton
+                            && ((AbstractButton) child).isSelected()) {
+                        selected.add(((AbstractButton) child).getText());
+                    }
+                }
+
+                if (!selected.isEmpty()) {
+                    answers.put(key, String.join(", ", selected));
+                } else {
+                    answers.remove(key);
+                }
+            }
+        }
+    }
+
+    private void updateReview() {
+        saveAnswers();
+
+        reviewContent.removeAll();
+        reviewCards.clear();
+
+        addReviewCard("Profile", 0, new String[]{"Profile Type", "Resume File"});
+
+        addReviewCard("Career Goals", 1, new String[]{
+                "opportunity", "industries", "jobRoles", "relatedOpportunities"
+        });
+
+        addReviewCard("Skills", 2, new String[]{
+                "skills", "strongestSkill", "skillLevel", "languages",
+                "recentJob", "experience", "qualifications"
+        });
+
+        addReviewCard("Work Interests", 3, new String[]{
+                "workTypes", "workEnjoy", "jobMotivators", "customInterest"
+        });
+
+        addReviewCard("Work Preferences", 4, new String[]{
+                "employmentType", "workSetup", "shift", "hoursPerShift",
+                "hoursPerWeek", "location", "scheduleDetails"
+        });
+
+        String[] needsKeys;
+
+        if (userType.equals("Student")) {
+            needsKeys = new String[]{
+                    "availability", "classSchedule", "educationLevel", "studentSupport"
+            };
+        } else if (userType.equals("PWD (Person with Disability)")) {
+            needsKeys = new String[]{
+                    "accommodations", "workEnvironment", "preferredTasks",
+                    "accessibilityDetails", "otherAccommodation", "supportNeeded"
+            };
+        } else if (userType.equals("Senior Citizen")) {
+            needsKeys = new String[]{
+                    "seniorEmployment", "seniorSchedule", "seniorWorkplace",
+                    "seniorWorkload", "seniorSupport", "seniorDetails"
+            };
+        } else {
+            needsKeys = new String[]{
+                    "regularPurpose", "desiredPosition", "regularEnvironment", "regularNeeds"
+            };
+        }
+
+        addReviewCard("Needs", 5, needsKeys);
+
+        reviewContent.revalidate();
+        reviewContent.repaint();
+    }
+
+    private void addReviewCard(String title, int editStep, String[] keys) {
+        JPanel card = new JPanel(new BorderLayout(8, 8));
+        card.setBackground(Color.WHITE);
+        card.setBorder(new CompoundBorder(
+                new LineBorder(new Color(225, 230, 239), 1, true),
+                new EmptyBorder(12, 14, 12, 14)
+        ));
+
+        JPanel top = new JPanel(new BorderLayout());
+        top.setOpaque(false);
+
+        JLabel heading = new JLabel(title);
+        heading.setFont(new Font("Arial", Font.BOLD, 14));
+        heading.setForeground(new Color(25, 43, 83));
+
+        JButton edit = new JButton("✎ Edit");
+        edit.setFont(new Font("Arial", Font.PLAIN, 11));
+        edit.setForeground(blue);
+        edit.setBorderPainted(false);
+        edit.setContentAreaFilled(false);
+        edit.setFocusPainted(false);
+        edit.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        edit.addActionListener(e -> showStep(editStep));
+
+        top.add(heading, BorderLayout.WEST);
+        top.add(edit, BorderLayout.EAST);
+
+        JPanel rows = new JPanel();
+        rows.setOpaque(false);
+        rows.setLayout(new BoxLayout(rows, BoxLayout.Y_AXIS));
+
+        boolean found = false;
+
+        for (String key : keys) {
+            String value = answers.get(key);
+
+            if (value != null && !value.isBlank()) {
+                found = true;
+
+                JPanel row = new JPanel(new BorderLayout(10, 3));
+                row.setOpaque(false);
+                row.setBorder(new EmptyBorder(3, 0, 3, 0));
+
+                JLabel name = new JLabel(pretty(key));
+                name.setFont(new Font("Arial", Font.PLAIN, 11));
+                name.setForeground(muted);
+
+                JLabel answer = new JLabel(
+                        "<html><div style='width:400px'>" +
+                        escapeHtml(value) +
+                        "</div></html>"
+                );
+                answer.setFont(new Font("Arial", Font.PLAIN, 11));
+                answer.setForeground(ink);
+
+                row.add(name, BorderLayout.WEST);
+                row.add(answer, BorderLayout.CENTER);
+                rows.add(row);
+            }
+        }
+
+        if (!found) {
+            JLabel empty = new JLabel("No answers added yet");
+            empty.setFont(new Font("Arial", Font.ITALIC, 11));
+            empty.setForeground(muted);
+            rows.add(empty);
+        }
+
+        card.add(top, BorderLayout.NORTH);
+        card.add(rows, BorderLayout.CENTER);
+
+        reviewCards.put(title, card);
+        reviewContent.add(card);
+    }
+
+    private String escapeHtml(String value) {
+        return value.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;");
+    }
+
+    private String pretty(String key) {
+        String s = key.replaceAll("([a-z])([A-Z])", "$1 $2")
+                .replaceAll("([A-Z])([A-Z][a-z])", "$1 $2");
+
+        s = s.replace("jobRoles", "Preferred Job Roles")
+                .replace("workTypes", "Interested Work Types")
+                .replace("workEnjoy", "Enjoyable Work")
+                .replace("jobMotivators", "Job Priorities")
+                .replace("hoursPerShift", "Hours Per Shift")
+                .replace("hoursPerWeek", "Hours Per Week")
+                .replace("relatedOpportunities", "Open to Related Roles")
+                .replace("otherAccommodation", "Additional Workplace Support")
+                .replace("supportNeeded", "Other Support Needed")
+                .replace("seniorWorkplace", "Workplace Preferences")
+                .replace("seniorDetails", "Additional Preferences")
+                .replace("customInterest", "Other Interests")
+                .replace("regularNeeds", "Other Workplace Needs")
+                .replace("scheduleDetails", "Schedule Details")
+                .replace("Profile Type", "Profile Type")
+                .replace("Resume File", "Resume File");
+
+        return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+    }
+
+    
+private boolean saveAssessmentToDatabase() {
+    
+Properties dbProperties = new Properties();
+
+try (java.io.FileInputStream input =
+        new java.io.FileInputStream("db.properties")) {
+    dbProperties.load(input);
+} catch (java.io.IOException e) {
+    JOptionPane.showMessageDialog(
+            this,
+            "Could not load database settings.",
+            "Database Error",
+            JOptionPane.ERROR_MESSAGE
+    );
+    return false;
+}
+
+String url = dbProperties.getProperty("db.url");
+String username = dbProperties.getProperty("db.username");
+String password = dbProperties.getProperty("db.password");
+
+    String submissionSQL =
+            "INSERT INTO assessment_submissions () VALUES ()";
+
+    String answerSQL =
+            "INSERT INTO assessment_answers " +
+            "(submission_id, question_key, answer_value) VALUES (?, ?, ?)";
+
+    try (Connection conn = DriverManager.getConnection(url, username, password)) {
+        conn.setAutoCommit(false);
+
+        try {
+            int submissionId;
+
+            try (PreparedStatement submissionStmt =
+                    conn.prepareStatement(
+                            submissionSQL,
+                            java.sql.Statement.RETURN_GENERATED_KEYS)) {
+
+                submissionStmt.executeUpdate();
+
+                try (ResultSet keys = submissionStmt.getGeneratedKeys()) {
+                    if (!keys.next()) {
+                        throw new SQLException("Could not get submission ID.");
+                    }
+
+                    submissionId = keys.getInt(1);
+                }
+            }
+
+            try (PreparedStatement answerStmt =
+                    conn.prepareStatement(answerSQL)) {
+
+                for (Map.Entry<String, String> entry : answers.entrySet()) {
+                    answerStmt.setInt(1, submissionId);
+                    answerStmt.setString(2, entry.getKey());
+                    answerStmt.setString(3, entry.getValue());
+                    answerStmt.addBatch();
+                }
+
+                answerStmt.executeBatch();
+            }
+
+            conn.commit();
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Your assessment has been saved to the database!",
+                    "Saved Successfully",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+
+            return true;
+
+        } catch (SQLException e) {
+            conn.rollback();
+            throw e;
+        }
+
+    } catch (SQLException e) {
+        JOptionPane.showMessageDialog(
+                this,
+                "Could not save your assessment.\n\n" + e.getMessage(),
+                "Database Error",
+                JOptionPane.ERROR_MESSAGE
+        );
+
+        e.printStackTrace();
+        return false;
+    }
+}
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new Main().setVisible(true));
+    }
+}
