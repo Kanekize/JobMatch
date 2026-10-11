@@ -2,7 +2,6 @@ package dashboards;
 
 import components.Layout;
 import pages.JobSeekerHomePage;
-import pages.MessagesPage;
 import pages.JobSeekerRecommendationsPage;
 import users.User;
 
@@ -28,37 +27,6 @@ public class JobSeekerDashboard extends Dashboard {
 
     }
 
-
-@Override
-public void onMenuClick(String name) {
-
-    JPanel center = layout.getContentPanel();
-
-    if ("Messages".equals(name)) {
-
-        center.removeAll();
-
-        center.add(
-            new MessagesPage(getUser()),
-            BorderLayout.CENTER
-        );
-
-    } else if ("Home".equals(name)) {
-
-        center.removeAll();
-
-        center.add(
-            new JobSeekerHomePage(getUser()),
-            BorderLayout.CENTER
-        );
-
-    } else {
-
-        System.out.println(
-            "Job Seeker clicked: " + name
-        );
-
-        return;
     public void onMenuClick(String name) {
         layout.setActive(name);
         if (name.equals("Home")) {
@@ -69,7 +37,4 @@ public void onMenuClick(String name) {
             showPage(new JobSeekerHomePage(getUser()));
         }
     }
-
-    center.revalidate();
-    center.repaint();
 }
