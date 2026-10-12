@@ -1,16 +1,20 @@
 
 package pages;
 
-import database.ApplicantRepository;
+import database.Database;
+import dashboards.Dashboard;
+import models.Applicant;
+import models.Job;
 import users.User;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 
 import java.awt.*;
-import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 public class ApplicantsPage extends JPanel {
 
@@ -31,8 +35,16 @@ public class ApplicantsPage extends JPanel {
     private final DefaultTableModel tableModel;
     private final JTable table;
 
-    private List<ApplicantRepository.Applicant> applicants =
-        new ArrayList<>();
+    private List<Applicant> applicants = new ArrayList<>();
+    private List<Applicant> visibleApplicants = new ArrayList<>();
+
+    private static final String[] STATUSES = {
+        "All Statuses",
+        "Under Review",
+        "Interview",
+        "Rejected",
+        "Accepted"
+    };
 
     public ApplicantsPage(User employer) {
 
@@ -50,7 +62,7 @@ public class ApplicantsPage extends JPanel {
         JLabel title = new JLabel("Applicants");
 
         title.setFont(
-            new Font("Arial", Font.BOLD, 28)
+            new Font("Inter", Font.BOLD, 28)
         );
 
         title.setForeground(Color.decode("#173B63"));
@@ -65,9 +77,7 @@ public class ApplicantsPage extends JPanel {
         filters.add(new JLabel("Search:"));
         filters.add(searchBox);
 
-        statusBox.addItem("All Statuses");
-
-        for (String s : ApplicantRepository.STATUSES) {
+        for (String s : STATUSES) {
             statusBox.addItem(s);
         }
 
@@ -125,26 +135,23 @@ public class ApplicantsPage extends JPanel {
             BorderLayout.CENTER
         );
 
-        // Buttons underneath the table
         JPanel actions = new JPanel(
             new FlowLayout(FlowLayout.LEFT, 10, 6)
         );
 
         actions.setOpaque(false);
 
-        JButton viewButton =
-            new JButton("View Profile");
-
-        JButton statusButton =
-            new JButton("Update Status");
+        JButton viewButton = new JButton("View Profile");
+        JButton statusButton = new JButton("Update Status");
+        JButton messageButton = new JButton("Message");
 
         actions.add(viewButton);
         actions.add(statusButton);
+        actions.add(messageButton);
         actions.add(resultLabel);
 
         add(actions, BorderLayout.SOUTH);
 
-        // Button actions
         searchButton.addActionListener(
             e -> refresh()
         );
@@ -161,69 +168,116 @@ public class ApplicantsPage extends JPanel {
             e -> changeStatus()
         );
 
+        messageButton.addActionListener(
+            e -> messageApplicant()
+        );
+
         loadJobFilter();
         refresh();
     }
 
-    // Retrieves available job titles
+
     private void loadJobFilter() {
+        Set<String> titles = new LinkedHashSet<String>();
+        List<Job> jobs = Database.getJobsByEmployer(employer.getEmail());
+        for (Job job : jobs) {
+            titles.add(job.getTitle());
+        }
 
-        try {
-            for (String title :
-                ApplicantRepository.jobTitles(
-                    employer.getEmail()
-                )) {
-
-                if (!title.equals("All Jobs")) {
-                    jobBox.addItem(title);
-                }
-            }
-
-        } catch (SQLException e) {
-            showError(e);
+        for (String title : titles) {
+            jobBox.addItem(title);
         }
     }
 
     // Loads applicants into the table
     private void refresh() {
+        applicants = Database.getApplicantsByEmployer(employer.getEmail());
 
-        try {
-            applicants = ApplicantRepository.search(
-                employer.getEmail(),
-                searchBox.getText(),
-                (String) statusBox.getSelectedItem(),
-                (String) jobBox.getSelectedItem()
-            );
+        String query = searchBox.getText() == null ? "" : searchBox.getText().trim().toLowerCase();
+        String statusFilter = (String) statusBox.getSelectedItem();
+        String jobFilter = (String) jobBox.getSelectedItem();
 
-            tableModel.setRowCount(0);
+        tableModel.setRowCount(0);
+        visibleApplicants.clear();
 
-            for (ApplicantRepository.Applicant person
-                    : applicants) {
-
-                tableModel.addRow(new Object[]{
-                    person.name,
-                    person.email,
-                    person.jobTitle,
-                    person.status,
-                    person.appliedAt
-                });
+        for (Applicant person : applicants) {
+            if (!query.isEmpty()
+                    && !containsIgnoreCase(person.getName(), query)
+                    && !containsIgnoreCase(person.getEmail(), query)
+                    && !containsIgnoreCase(person.getJobTitle(), query)
+                    && !containsIgnoreCase(person.getDetails(), query)) {
+                continue;
             }
 
-            resultLabel.setText(
-                applicants.isEmpty()
-                    ? "No applications found yet."
-                    : applicants.size() +
-                      " application(s) found"
-            );
+            if (!"All Statuses".equals(statusFilter)
+                    && !statusFilter.equals(person.getStatus())) {
+                continue;
+            }
 
-        } catch (SQLException e) {
-            showError(e);
+            if (!"All Jobs".equals(jobFilter)
+                    && !jobFilter.equals(person.getJobTitle())) {
+                continue;
+            }
+
+            visibleApplicants.add(person);
+            tableModel.addRow(new Object[]{
+                person.getName(),
+                emptyValue(person.getEmail()),
+                emptyValue(person.getJobTitle()),
+                person.getStatus(),
+                person.getAppliedAt()
+            });
         }
+
+        resultLabel.setText(
+            visibleApplicants.isEmpty()
+                ? "No applications found yet."
+                : visibleApplicants.size() + " application(s) found"
+        );
+
+    }
+
+    private boolean containsIgnoreCase(String value, String query) {
+        return value != null && value.toLowerCase().contains(query);
+    }
+
+    private String emptyValue(String value) {
+        return value == null || value.isBlank() ? "-" : value;
+    }
+
+    private Dashboard getDashboard() {
+        return (Dashboard) SwingUtilities.getWindowAncestor(this);
+    }
+
+    private void messageApplicant() {
+        Applicant p = selected();
+        if (p == null) {
+            return;
+        }
+
+        if (p.getEmail() == null || p.getEmail().isBlank()) {
+            JOptionPane.showMessageDialog(
+                this,
+                "This applicant does not have a messageable email yet."
+            );
+            return;
+        }
+
+        getDashboard().showPage(new MessagesPage(employer, p.getEmail()));
+    }
+
+    // Displays database errors
+    private void showError(Exception e) {
+        JOptionPane.showMessageDialog(
+            this,
+            e.getMessage(),
+            "Applicant Error",
+            JOptionPane.ERROR_MESSAGE
+        );
     }
 
     // Returns the selected applicant
-    private ApplicantRepository.Applicant selected() {
-
+    private Applicant selected() {
         int viewRow = table.getSelectedRow();
 
         if (viewRow == -1) {
@@ -235,70 +289,40 @@ public class ApplicantsPage extends JPanel {
             return null;
         }
 
-        int modelRow =
-            table.convertRowIndexToModel(viewRow);
-
-        return applicants.get(modelRow);
+        int modelRow = table.convertRowIndexToModel(viewRow);
+        return visibleApplicants.get(modelRow);
     }
 
     // Displays placeholders for missing profile data
     private String available(String input) {
-
         if (input == null || input.isBlank()) {
             return "Not provided yet";
         }
-
         return input;
     }
 
     // Shows the selected applicant's profile
     private void showProfile() {
-
-        ApplicantRepository.Applicant p = selected();
-
+        Applicant p = selected();
         if (p == null) {
             return;
         }
 
         JTextArea details = new JTextArea(
-            "Name: " + p.name + "\n" +
-            "Email: " + p.email + "\n" +
-            "Applied for: " + p.jobTitle + "\n" +
-            "Status: " + p.status + "\n\n" +
-
-            "Professional Title: " +
-                available(p.professionalTitle) + "\n" +
-
-            "Location: " +
-                available(p.location) + "\n" +
-
-            "Skills: " +
-                available(p.skills) + "\n" +
-
-            "Education: " +
-                available(p.education) + "\n" +
-
-            "Experience: " +
-                available(p.experience) + "\n" +
-
-            "About: " +
-                available(p.about)
+            "Name: " + p.getName() + "\n" +
+            "Email: " + available(p.getEmail()) + "\n" +
+            "Applied for: " + available(p.getJobTitle()) + "\n" +
+            "Status: " + p.getStatus() + "\n\n" +
+            "About: " + available(p.getDetails())
         );
 
         details.setEditable(false);
         details.setLineWrap(true);
         details.setWrapStyleWord(true);
+        details.setFont(new Font("Inter", Font.PLAIN, 14));
 
-        details.setFont(
-            new Font("Arial", Font.PLAIN, 14)
-        );
-
-        JScrollPane scroll =
-            new JScrollPane(details);
-
-        scroll.setPreferredSize(
-            new Dimension(500, 320)
-        );
+        JScrollPane scroll = new JScrollPane(details);
+        scroll.setPreferredSize(new Dimension(500, 320));
 
         JOptionPane.showMessageDialog(
             this,
@@ -310,73 +334,28 @@ public class ApplicantsPage extends JPanel {
 
     // Changes the selected applicant's status
     private void changeStatus() {
-
-        ApplicantRepository.Applicant p = selected();
-
+        Applicant p = selected();
         if (p == null) {
             return;
         }
 
-        String newStatus = (String)
-            JOptionPane.showInputDialog(
-                this,
-
-                "Choose the new status for " +
-                    p.name + ":",
-
-                "Update Application",
-
-                JOptionPane.QUESTION_MESSAGE,
-
-                null,
-
-                ApplicantRepository.STATUSES,
-
-                p.status
-            );
+        String[] statuses = {"Under Review", "Interview", "Rejected", "Accepted"};
+        String newStatus = (String) JOptionPane.showInputDialog(
+            this,
+            "Choose the new status for " + p.getName() + ":",
+            "Update Application",
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            statuses,
+            p.getStatus()
+        );
 
         if (newStatus == null) {
             return;
         }
 
-        try {
-            boolean updated =
-                ApplicantRepository.updateStatus(
-                    p.id,
-                    employer.getEmail(),
-                    newStatus
-                );
-
-            if (updated) {
-                refresh();
-
-                JOptionPane.showMessageDialog(
-                    this,
-                    "Status updated successfully."
-                );
-
-            } else {
-                JOptionPane.showMessageDialog(
-                    this,
-                    "Application not found."
-                );
-            }
-
-        } catch (SQLException |
-                 IllegalArgumentException e) {
-
-            showError(e);
-        }
-    }
-
-    // Displays database errors
-    private void showError(Exception e) {
-
-        JOptionPane.showMessageDialog(
-            this,
-            e.getMessage(),
-            "Applicant Error",
-            JOptionPane.ERROR_MESSAGE
-        );
+        Database.updateApplicantStatus(p.getId(), newStatus);
+        refresh();
+        JOptionPane.showMessageDialog(this, "Status updated successfully.");
     }
 }

@@ -38,7 +38,7 @@ public class NotificationsPage extends JPanel {
         JLabel title = new JLabel("Notifications");
 
         title.setFont(new Font(
-            "Arial", Font.BOLD, 28
+            "Inter", Font.BOLD, 28
         ));
 
         title.setForeground(Color.decode("#173B63"));
@@ -83,7 +83,7 @@ public class NotificationsPage extends JPanel {
                     );
 
                     label.setFont(new Font(
-                        "Arial",
+                        "Inter",
                         n.isRead ? Font.PLAIN : Font.BOLD,
                         13
                     ));
@@ -105,7 +105,7 @@ public class NotificationsPage extends JPanel {
         detailsArea.setWrapStyleWord(true);
 
         detailsArea.setFont(new Font(
-            "Arial", Font.PLAIN, 15
+            "Inter", Font.PLAIN, 15
         ));
 
         detailsArea.setBorder(

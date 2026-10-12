@@ -54,7 +54,7 @@ public class Layout implements ActionListener, FocusListener {
 
         // sidebar
         sidebarPanel = new JPanel(new BorderLayout());
-        sidebarPanel.setBackground(Color.decode("#12376b"));
+        sidebarPanel.setBackground(Color.decode("#103358"));
         sidebarPanel.setPreferredSize(new Dimension(240, 0));
         sidebarPanel.setBorder(BorderFactory.createEmptyBorder(25, 15, 20, 15));
 
@@ -69,11 +69,11 @@ public class Layout implements ActionListener, FocusListener {
         logoPanel.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 0));
 
         JLabel jobLabel = new JLabel("Job");
-        jobLabel.setFont(new Font("Arial", Font.BOLD, 28));
+        jobLabel.setFont(new Font("Inter", Font.BOLD, 28));
         jobLabel.setForeground(Color.decode("#FFFFFF"));
 
         JLabel matchLabel = new JLabel("Match");
-        matchLabel.setFont(new Font("Arial", Font.BOLD, 28));
+        matchLabel.setFont(new Font("Inter", Font.BOLD, 28));
         matchLabel.setForeground(Color.decode("#3AA1F8"));
 
         logoPanel.add(jobLabel);
@@ -83,8 +83,20 @@ public class Layout implements ActionListener, FocusListener {
 
         menuButtons = new JButton[menuItems.length];
         for (int i = 0; i < menuItems.length; i++) {
-            menuButtons[i] = new JButton(menuItems[i]);
+            menuButtons[i] = new JButton(menuItems[i]) {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setColor(getBackground());
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                    g2.dispose();
+                    super.paintComponent(g);
+                }
+            };
             menuButtons[i].setActionCommand(menuItems[i]);
+            menuButtons[i].setIcon(sidebarIcon(menuItems[i]));
+            menuButtons[i].setIconTextGap(14);
             styleSideButton(menuButtons[i]);
             menuPanel.add(menuButtons[i]);
             menuPanel.add(Box.createVerticalStrut(6));
@@ -102,24 +114,39 @@ public class Layout implements ActionListener, FocusListener {
         userPanel.setPreferredSize(new Dimension(210, 48));
         userPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 48));
 
-        JLabel avatarLabel = new JLabel(initial, SwingConstants.CENTER);
-        avatarLabel.setOpaque(true);
-        avatarLabel.setBackground(Color.decode("#cbd5e1"));
-        avatarLabel.setForeground(Color.decode("#12376b"));
-        avatarLabel.setFont(new Font("Arial", Font.BOLD, 18));
-        avatarLabel.setPreferredSize(new Dimension(44, 44));
-        userPanel.add(avatarLabel, BorderLayout.WEST);
+        profileBtn = new JButton(initial) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getBackground());
+                g2.fillOval(0, 0, getWidth(), getHeight());
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        profileBtn.setActionCommand("Profile");
+        profileBtn.setOpaque(false);
+        profileBtn.setContentAreaFilled(false);
+        profileBtn.setBackground(Color.decode("#cbd5e1"));
+        profileBtn.setForeground(Color.decode("#12376b"));
+        profileBtn.setFont(new Font("Inter", Font.BOLD, 18));
+        profileBtn.setBorderPainted(false);
+        profileBtn.setFocusable(false);
+        profileBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        profileBtn.setPreferredSize(new Dimension(44, 44));
+        profileBtn.addActionListener(this);
+        userPanel.add(profileBtn, BorderLayout.WEST);
 
         JPanel nameBox = new JPanel();
         nameBox.setLayout(new BoxLayout(nameBox, BoxLayout.Y_AXIS));
         nameBox.setOpaque(false);
 
-        JLabel nameLabel = new JLabel(user.getFullName());
-        nameLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        JLabel nameLabel = new JLabel(user.getDisplayName());
+        nameLabel.setFont(new Font("Inter", Font.BOLD, 14));
         nameLabel.setForeground(Color.WHITE);
 
         JLabel roleLabel = new JLabel(user.getRole());
-        roleLabel.setFont(new Font("Arial", Font.PLAIN, 12));
+        roleLabel.setFont(new Font("Inter", Font.PLAIN, 12));
         roleLabel.setForeground(Color.decode("#9db4d6"));
 
         nameBox.add(Box.createVerticalGlue());
@@ -130,6 +157,8 @@ public class Layout implements ActionListener, FocusListener {
 
         logoutBtn = new JButton("Logout");
         logoutBtn.setActionCommand("Logout");
+        logoutBtn.setIcon(loadIcon("logout.png", 19, 19));
+        logoutBtn.setIconTextGap(14);
         styleSideButton(logoutBtn);
 
         bottomPanel.add(userPanel);
@@ -148,24 +177,43 @@ public class Layout implements ActionListener, FocusListener {
                 BorderFactory.createEmptyBorder(14, 25, 14, 25)
         ));
 
+        JPanel globalSearch = new JPanel(new BorderLayout(10, 0));
+        globalSearch.setOpaque(false);
+        globalSearch.setPreferredSize(new Dimension(460, 40));
+        globalSearch.setMaximumSize(new Dimension(460, 40));
+        globalSearch.setBorder(BorderFactory.createCompoundBorder(
+                new components.RoundedLineBorder(Color.decode("#d7dce3"), 12, 1),
+                BorderFactory.createEmptyBorder(0, 12, 0, 12)));
+        JLabel globalSearchIcon = new JLabel(loadIcon("search.png", 18, 18));
+        globalSearch.add(globalSearchIcon, BorderLayout.WEST);
         searchField = new JTextField(searchHint);
-        searchField.setFont(new Font("Arial", Font.PLAIN, 14));
+        searchField.setFont(new Font("Inter", Font.PLAIN, 14));
         searchField.setForeground(Color.GRAY);
-        searchField.setPreferredSize(new Dimension(400, 40));
-        searchField.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Color.decode("#e2e8f0"), 1),
-                BorderFactory.createEmptyBorder(0, 12, 0, 12)
-        ));
+        searchField.setOpaque(false);
+        searchField.setBorder(BorderFactory.createEmptyBorder());
         searchField.addFocusListener(this);
-        searchField.addKeyListener(dashboard);
+        searchField.addActionListener(e -> {
+            String query = searchField.getText().trim();
+            if (!query.isEmpty() && !query.equals(searchHint)) {
+                if (dashboard instanceof dashboards.JobSeekerDashboard) {
+                    dashboard.showPage(new pages.JobSeekerJobsPage(user, null));
+                } else if (dashboard instanceof dashboards.EmployerDashboard) {
+                    dashboard.onMenuClick("Jobs");
+                }
+            }
+        });
+        globalSearch.add(searchField, BorderLayout.CENTER);
 
         JPanel searchWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         searchWrap.setOpaque(false);
-        searchWrap.add(searchField);
+        searchWrap.add(globalSearch);
+        topBar.add(searchWrap, BorderLayout.CENTER);
 
-        notificationBtn = new JButton("Notifications");
+        notificationBtn = new JButton(loadIcon("notification-bell.png", 22, 22));
         notificationBtn.setActionCommand("Notifications");
-        notificationBtn.setFont(new Font("Arial", Font.PLAIN, 14));
+        notificationBtn.setToolTipText("Notifications");
+        notificationBtn.setPreferredSize(new Dimension(32, 36));
+        notificationBtn.setFont(new Font("Inter", Font.PLAIN, 14));
         notificationBtn.setForeground(Color.decode("#12376b"));
         notificationBtn.setBorderPainted(false);
         notificationBtn.setContentAreaFilled(false);
@@ -173,24 +221,9 @@ public class Layout implements ActionListener, FocusListener {
         notificationBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         notificationBtn.addActionListener(this);
 
-        profileBtn = new JButton(initial);
-        profileBtn.setActionCommand("Profile");
-        profileBtn.setFont(new Font("Arial", Font.BOLD, 16));
-        profileBtn.setForeground(Color.decode("#12376b"));
-        profileBtn.setBackground(Color.decode("#cbd5e1"));
-        profileBtn.setBorderPainted(false);
-        profileBtn.setMargin(new Insets(0, 0, 0, 0));
-        profileBtn.setFocusable(false);
-        profileBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        profileBtn.setPreferredSize(new Dimension(40, 40));
-        profileBtn.addActionListener(this);
-
         JPanel rightWrap = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 0));
         rightWrap.setOpaque(false);
         rightWrap.add(notificationBtn);
-        rightWrap.add(profileBtn);
-
-        topBar.add(searchWrap, BorderLayout.WEST);
         topBar.add(rightWrap, BorderLayout.EAST);
 
         // center panel for dashboards
@@ -213,12 +246,38 @@ public class Layout implements ActionListener, FocusListener {
         return contentPanel;
     }
 
+    private ImageIcon loadIcon(String fileName, int width, int height) {
+        java.io.File file = new java.io.File("src/images/" + fileName);
+        if (!file.exists()) file = new java.io.File("JobMatch/src/images/" + fileName);
+        if (!file.exists()) return null;
+        Image image = new ImageIcon(file.getPath()).getImage().getScaledInstance(width, height, Image.SCALE_SMOOTH);
+        return new ImageIcon(image);
+    }
+
+    private ImageIcon sidebarIcon(String item) {
+        String file;
+        switch (item) {
+            case "Home": file = "home.png"; break;
+            case "Recommendations": file = "recommendation.png"; break;
+            case "Applications": file = "applications.png"; break;
+            case "Assessment": file = "assessment.png"; break;
+            case "Messages": file = "message.png"; break;
+            case "Interviews": file = "interviews.png"; break;
+            case "Jobs": file = "recommendation.png"; break;
+            case "Applicants": file = "assessment.png"; break;
+            default: file = "home.png";
+        }
+        return loadIcon(file, 20, 20);
+    }
+
     private void styleSideButton(JButton btn) {
-        btn.setFont(new Font("Arial", Font.PLAIN, 15));
+        btn.setFont(new Font("Inter", Font.PLAIN, 15));
         btn.setForeground(Color.WHITE);
-        btn.setBackground(Color.decode("#12376b"));
+        btn.setBackground(Color.decode("#103358"));
         btn.setHorizontalAlignment(SwingConstants.LEFT);
-        btn.setBorder(BorderFactory.createEmptyBorder(0, 18, 0, 0));
+        btn.setBorder(BorderFactory.createEmptyBorder(0, 14, 0, 10));
+        btn.setContentAreaFilled(false);
+        btn.setOpaque(false);
         btn.setBorderPainted(false);
         btn.setFocusable(false);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
@@ -232,9 +291,9 @@ public class Layout implements ActionListener, FocusListener {
     public void setActive(String name) {
         for (int i = 0; i < menuButtons.length; i++) {
             if (menuButtons[i].getActionCommand().equals(name)) {
-                menuButtons[i].setBackground(Color.decode("#2f80ed"));
+                menuButtons[i].setBackground(Color.decode("#3284FC"));
             } else {
-                menuButtons[i].setBackground(Color.decode("#12376b"));
+                menuButtons[i].setBackground(Color.decode("#103358"));
             }
         }
     }
@@ -252,14 +311,14 @@ public class Layout implements ActionListener, FocusListener {
     }
 
     public void focusGained(FocusEvent e) {
-        if (searchField.getText().equals(searchHint)) {
+        if (searchField != null && searchField.getText().equals(searchHint)) {
             searchField.setText("");
             searchField.setForeground(Color.decode("#0d0d0d"));
         }
     }
 
     public void focusLost(FocusEvent e) {
-        if (searchField.getText().isEmpty()) {
+        if (searchField != null && searchField.getText().isEmpty()) {
             searchField.setText(searchHint);
             searchField.setForeground(Color.GRAY);
         }

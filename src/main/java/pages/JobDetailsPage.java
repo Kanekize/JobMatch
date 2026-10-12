@@ -1,6 +1,8 @@
 package pages;
 
 import models.Job;
+import database.Database;
+import components.RoundedLineBorder;
 import users.User;
 
 import javax.swing.*;
@@ -12,7 +14,7 @@ public class JobDetailsPage extends Page {
         super(user);
 
         JButton backLink = new JButton("< Back to Jobs");
-        backLink.setFont(new Font("Arial", Font.PLAIN, 14));
+        backLink.setFont(new Font("Inter", Font.PLAIN, 14));
         backLink.setForeground(Color.decode("#0d0d0d"));
         backLink.setBorderPainted(false);
         backLink.setContentAreaFilled(false);
@@ -28,7 +30,7 @@ public class JobDetailsPage extends Page {
         JPanel header = new JPanel(new BorderLayout(20, 0));
         header.setBackground(Color.WHITE);
         header.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Color.decode("#e5e9f0"), 1),
+                new RoundedLineBorder(Color.decode("#d7dce3"), 14, 1),
                 BorderFactory.createEmptyBorder(20, 25, 20, 25)));
         header.setAlignmentX(Component.LEFT_ALIGNMENT);
 
@@ -39,19 +41,19 @@ public class JobDetailsPage extends Page {
         info.setOpaque(false);
 
         JLabel titleLabel = new JLabel(job.getTitle());
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 26));
+        titleLabel.setFont(new Font("Inter", Font.BOLD, 26));
         titleLabel.setForeground(Color.decode("#0d0d0d"));
         titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel infoLabel = new JLabel(job.getCity() + ", " + job.getLocation()
                 + "  |  " + job.getJobType() + "  |  " + job.getWorkplaceType());
-        infoLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        infoLabel.setFont(new Font("Inter", Font.PLAIN, 14));
         infoLabel.setForeground(Color.decode("#4b5563"));
         infoLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         String date = job.getCreatedAt() == null ? "" : job.getCreatedAt().split(" ")[0];
         JLabel dateLabel = new JLabel("Posted on " + date);
-        dateLabel.setFont(new Font("Arial", Font.PLAIN, 12));
+        dateLabel.setFont(new Font("Inter", Font.PLAIN, 12));
         dateLabel.setForeground(Color.decode("#6b7280"));
         dateLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
@@ -65,14 +67,27 @@ public class JobDetailsPage extends Page {
         JButton applyBtn = new JButton("Apply Now");
         applyBtn.setBackground(Color.decode("#2563eb"));
         applyBtn.setForeground(Color.WHITE);
-        applyBtn.setFont(new Font("Arial", Font.BOLD, 14));
+        applyBtn.setFont(new Font("Inter", Font.BOLD, 14));
         applyBtn.setPreferredSize(new Dimension(130, 40));
         applyBtn.setBorderPainted(false);
         applyBtn.setOpaque(true);
         applyBtn.setFocusable(false);
         applyBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        applyBtn.addActionListener(e -> JOptionPane.showMessageDialog(this,
-                "test"));
+        boolean alreadyApplied = Database.hasApplied(getUser().getEmail(), job.getId());
+        applyBtn.setText(alreadyApplied ? "Applied" : "Apply Now");
+        applyBtn.setEnabled(!alreadyApplied);
+        applyBtn.addActionListener(e -> {
+            if (Database.applyToJob(getUser().getEmail(), job.getId())) {
+                JOptionPane.showMessageDialog(this, "Your application has been submitted successfully.", "Application Submitted", JOptionPane.INFORMATION_MESSAGE);
+                applyBtn.setText("Applied");
+                applyBtn.setEnabled(false);
+            } else if (Database.hasApplied(getUser().getEmail(), job.getId())) {
+                JOptionPane.showMessageDialog(this, "You have already applied for this job.");
+                applyBtn.setText("Applied"); applyBtn.setEnabled(false);
+            } else {
+                JOptionPane.showMessageDialog(this, "Could not submit your application. Please try again.", "Application Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
         header.add(applyBtn, BorderLayout.EAST);
 
         addBlock(header, 20);
@@ -96,19 +111,19 @@ public class JobDetailsPage extends Page {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(Color.WHITE);
         panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Color.decode("#e5e9f0"), 1),
+                new RoundedLineBorder(Color.decode("#d7dce3"), 12, 1),
                 BorderFactory.createEmptyBorder(15, 20, 15, 20)));
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        titleLabel.setFont(new Font("Inter", Font.BOLD, 16));
         titleLabel.setForeground(Color.decode("#0d0d0d"));
         titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(titleLabel);
         panel.add(Box.createVerticalStrut(8));
 
         JTextArea area = new JTextArea(text);
-        area.setFont(new Font("Arial", Font.PLAIN, 13));
+        area.setFont(new Font("Inter", Font.PLAIN, 13));
         area.setForeground(Color.decode("#4b5563"));
         area.setLineWrap(true);
         area.setWrapStyleWord(true);
@@ -126,12 +141,12 @@ public class JobDetailsPage extends Page {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(Color.WHITE);
         panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Color.decode("#e5e9f0"), 1),
+                new RoundedLineBorder(Color.decode("#d7dce3"), 12, 1),
                 BorderFactory.createEmptyBorder(15, 20, 15, 20)));
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel titleLabel = new JLabel("Job Details");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        titleLabel.setFont(new Font("Inter", Font.BOLD, 16));
         titleLabel.setForeground(Color.decode("#0d0d0d"));
         titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(titleLabel);
@@ -157,12 +172,12 @@ public class JobDetailsPage extends Page {
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 25));
 
         JLabel labelL = new JLabel(label);
-        labelL.setFont(new Font("Arial", Font.BOLD, 13));
+        labelL.setFont(new Font("Inter", Font.BOLD, 13));
         labelL.setForeground(Color.decode("#0d0d0d"));
         labelL.setPreferredSize(new Dimension(180, 20));
 
         JLabel valueL = new JLabel(value);
-        valueL.setFont(new Font("Arial", Font.PLAIN, 13));
+        valueL.setFont(new Font("Inter", Font.PLAIN, 13));
         valueL.setForeground(Color.decode("#4b5563"));
 
         row.add(labelL, BorderLayout.WEST);

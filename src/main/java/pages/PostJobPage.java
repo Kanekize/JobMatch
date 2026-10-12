@@ -5,13 +5,11 @@ import models.Job;
 import users.User;
 
 import javax.swing.*;
-import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.AbstractDocument;
 import javax.swing.text.AttributeSet;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.DocumentFilter;
 import java.awt.*;
-import java.io.File;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -111,7 +109,7 @@ public class PostJobPage extends Page {
         topRow.setOpaque(false);
 
         JButton backLink = new JButton("< Go to My Job Posts");
-        backLink.setFont(new Font("Arial", Font.PLAIN, 14));
+        backLink.setFont(new Font("Inter", Font.PLAIN, 14));
         backLink.setForeground(Color.decode("#0d0d0d"));
         backLink.setBorderPainted(false);
         backLink.setContentAreaFilled(false);
@@ -121,14 +119,14 @@ public class PostJobPage extends Page {
         topRow.add(backLink, BorderLayout.WEST);
 
         progressLabel = new JLabel("(Progress: Step 1 out of 3)");
-        progressLabel.setFont(new Font("Arial", Font.PLAIN, 13));
+        progressLabel.setFont(new Font("Inter", Font.PLAIN, 13));
         progressLabel.setForeground(Color.decode("#6b7280"));
         topRow.add(progressLabel, BorderLayout.EAST);
         addBlock(topRow, 5);
 
         if (editingJob != null) {
             statusBox = new JComboBox<>(new String[]{"Active", "Closed"});
-            statusBox.setFont(new Font("Arial", Font.PLAIN, 14));
+            statusBox.setFont(new Font("Inter", Font.PLAIN, 14));
             statusBox.setBackground(Color.WHITE);
             statusBox.setPreferredSize(new Dimension(160, 32));
 
@@ -137,7 +135,7 @@ public class PostJobPage extends Page {
             statusRow.setAlignmentX(Component.LEFT_ALIGNMENT);
 
             JLabel statusLbl = new JLabel("Post Status:");
-            statusLbl.setFont(new Font("Arial", Font.BOLD, 13));
+            statusLbl.setFont(new Font("Inter", Font.BOLD, 13));
             statusLbl.setForeground(Color.decode("#0d0d0d"));
 
             statusRow.add(statusLbl);
@@ -148,6 +146,7 @@ public class PostJobPage extends Page {
         addBlock(makeHeading(editingJob == null ? "Post a New Job Opening" : "Edit Job Details",
                 "Fill out the core requirements below.", null), 15);
 
+        logoPath = resolveJobLogoPath();
         cards = new CardLayout();
         stepsPanel = new JPanel(cards);
         stepsPanel.setOpaque(false);
@@ -186,7 +185,7 @@ public class PostJobPage extends Page {
 
         panel.add(makeLabel("Job Description *"));
         descArea = new JTextArea(4, 20);
-        descArea.setFont(new Font("Arial", Font.PLAIN, 14));
+        descArea.setFont(new Font("Inter", Font.PLAIN, 14));
         descArea.setLineWrap(true);
         descArea.setWrapStyleWord(true);
         descArea.setBorder(BorderFactory.createCompoundBorder(
@@ -211,7 +210,7 @@ public class PostJobPage extends Page {
         panel.add(descWrap);
 
         descCounter = new JLabel("0/300");
-        descCounter.setFont(new Font("Arial", Font.PLAIN, 11));
+        descCounter.setFont(new Font("Inter", Font.PLAIN, 11));
         descCounter.setForeground(Color.decode("#6b7280"));
         descCounter.setAlignmentX(Component.RIGHT_ALIGNMENT);
         panel.add(descCounter);
@@ -275,7 +274,7 @@ public class PostJobPage extends Page {
         ButtonGroup accGroup = new ButtonGroup();
         accGroup.add(accYes);
         accGroup.add(accNo);
-        JPanel accChoice = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        JPanel accChoice = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         accChoice.setOpaque(false);
         accChoice.setAlignmentX(Component.LEFT_ALIGNMENT);
         accChoice.add(accYes);
@@ -332,7 +331,7 @@ public class PostJobPage extends Page {
         });
         expChoice.add(chooseExpBtn);
         expLengthLabel = new JLabel("");
-        expLengthLabel.setFont(new Font("Arial", Font.PLAIN, 13));
+        expLengthLabel.setFont(new Font("Inter", Font.PLAIN, 13));
         expChoice.add(expLengthLabel);
         expYes.addActionListener(e -> chooseExpBtn.setEnabled(true));
         expNo.addActionListener(e -> {
@@ -362,29 +361,10 @@ public class PostJobPage extends Page {
         locationBox.setPreferredSize(new Dimension(250, 38));
         locWrap.add(locationBox);
         cityLabel = new JLabel("No city selected yet.");
-        cityLabel.setFont(new Font("Arial", Font.PLAIN, 13));
+        cityLabel.setFont(new Font("Inter", Font.PLAIN, 13));
         cityLabel.setForeground(Color.decode("#6b7280"));
         locWrap.add(cityLabel);
         panel.add(locWrap);
-        panel.add(Box.createVerticalStrut(15));
-
-        panel.add(makeLabel("Company Logo Image (Optional)"));
-        JPanel logoRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 0));
-        logoRow.setOpaque(false);
-        logoRow.setAlignmentX(Component.LEFT_ALIGNMENT);
-        logoPreview = new JPanel(new BorderLayout());
-        logoPreview.setPreferredSize(new Dimension(90, 90));
-        logoPreview.setBackground(Color.WHITE);
-        logoPreview.setBorder(BorderFactory.createLineBorder(Color.decode("#e2e8f0"), 1));
-        JLabel noImage = new JLabel("No Image Uploaded", SwingConstants.CENTER);
-        noImage.setFont(new Font("Arial", Font.PLAIN, 10));
-        noImage.setForeground(Color.decode("#6b7280"));
-        logoPreview.add(noImage, BorderLayout.CENTER);
-        JButton uploadBtn = makeBlueButton("Upload File");
-        uploadBtn.addActionListener(e -> pickLogo());
-        logoRow.add(logoPreview);
-        logoRow.add(uploadBtn);
-        panel.add(logoRow);
         panel.add(Box.createVerticalStrut(20));
 
         panel.add(makeNavButtons(e -> {
@@ -426,21 +406,6 @@ public class PostJobPage extends Page {
         return true;
     }
 
-    private void pickLogo() {
-        JFileChooser chooser = new JFileChooser();
-        chooser.setFileFilter(new FileNameExtensionFilter("Image files", "jpg", "jpeg", "png"));
-        if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
-            File file = chooser.getSelectedFile();
-            logoPath = file.getAbsolutePath();
-            ImageIcon icon = new ImageIcon(logoPath);
-            Image scaled = icon.getImage().getScaledInstance(90, 90, Image.SCALE_SMOOTH);
-            logoPreview.removeAll();
-            logoPreview.add(new JLabel(new ImageIcon(scaled)), BorderLayout.CENTER);
-            logoPreview.revalidate();
-            logoPreview.repaint();
-        }
-    }
-
     //step 3
     private void showReviewStep() {
         JPanel panel = new JPanel();
@@ -448,7 +413,7 @@ public class PostJobPage extends Page {
         panel.setOpaque(false);
 
         JLabel note = new JLabel("You're Almost Done! Review your answers below before finalizing.");
-        note.setFont(new Font("Arial", Font.PLAIN, 15));
+        note.setFont(new Font("Inter", Font.PLAIN, 15));
         note.setForeground(Color.decode("#4b5563"));
         note.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(note);
@@ -469,7 +434,7 @@ public class PostJobPage extends Page {
         panel.add(makeReviewRow("Applicant Types", String.join(", ", selectedTypes)));
         panel.add(makeReviewRow("Experience Required", expYes.isSelected() ? "Yes (" + expLength + ")" : "No"));
         panel.add(makeReviewRow("Company Location", selectedCity + ", " + locationBox.getSelectedItem()));
-        panel.add(makeReviewRow("Company Logo", logoPath.isEmpty() ? "No image uploaded" : logoPath));
+        panel.add(makeReviewRow("Company Logo", logoPath.isEmpty() ? "No company logo uploaded yet" : "Loaded from company profile"));
         if (editingJob != null) {
             panel.add(makeReviewRow("Post Status", (String) statusBox.getSelectedItem()));
         }
@@ -494,12 +459,12 @@ public class PostJobPage extends Page {
         box.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
 
         JLabel nameLabel = new JLabel(label);
-        nameLabel.setFont(new Font("Arial", Font.BOLD, 13));
+        nameLabel.setFont(new Font("Inter", Font.BOLD, 13));
         nameLabel.setForeground(Color.decode("#12376b"));
         box.add(nameLabel, BorderLayout.NORTH);
 
         JTextArea valueArea = new JTextArea(value);
-        valueArea.setFont(new Font("Arial", Font.PLAIN, 14));
+        valueArea.setFont(new Font("Inter", Font.PLAIN, 14));
         valueArea.setForeground(Color.decode("#0d0d0d"));
         valueArea.setLineWrap(true);
         valueArea.setWrapStyleWord(true);
@@ -527,7 +492,7 @@ public class PostJobPage extends Page {
         job.setExperienceLength(expLength);
         job.setLocation((String) locationBox.getSelectedItem());
         job.setCity(selectedCity);
-        job.setLogoPath(logoPath);
+        job.setLogoPath(resolveJobLogoPath());
         if (editingJob != null && statusBox != null) {
             job.setStatus((String) statusBox.getSelectedItem());
         }
@@ -585,13 +550,38 @@ public class PostJobPage extends Page {
         selectedCity = editingJob.getCity();
         cityLabel.setText("City: " + selectedCity);
 
-        logoPath = editingJob.getLogoPath();
-        if (logoPath != null && !logoPath.isEmpty()) {
+        logoPath = resolveJobLogoPath();
+        refreshLogoPreview();
+    }
+
+    private String resolveJobLogoPath() {
+        String companyLogo = Database.getEmployerCompanyLogoPath(getUser().getEmail());
+        if (companyLogo != null && !companyLogo.isBlank()) {
+            return companyLogo;
+        }
+        if (editingJob != null && editingJob.getLogoPath() != null) {
+            return editingJob.getLogoPath();
+        }
+        return "";
+    }
+
+    private void refreshLogoPreview() {
+        if (logoPreview == null) {
+            return;
+        }
+        logoPreview.removeAll();
+        if (logoPath != null && !logoPath.isBlank()) {
             ImageIcon icon = new ImageIcon(logoPath);
             Image scaled = icon.getImage().getScaledInstance(90, 90, Image.SCALE_SMOOTH);
-            logoPreview.removeAll();
             logoPreview.add(new JLabel(new ImageIcon(scaled)), BorderLayout.CENTER);
+        } else {
+            JLabel noImage = new JLabel("No Logo", SwingConstants.CENTER);
+            noImage.setFont(new Font("Inter", Font.PLAIN, 10));
+            noImage.setForeground(Color.decode("#6b7280"));
+            logoPreview.add(noImage, BorderLayout.CENTER);
         }
+        logoPreview.revalidate();
+        logoPreview.repaint();
     }
 
     // hints sa pag sagot
@@ -607,7 +597,7 @@ public class PostJobPage extends Page {
         panel.setOpaque(false);
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 70));
-        field.setFont(new Font("Arial", Font.PLAIN, 14));
+        field.setFont(new Font("Inter", Font.PLAIN, 14));
         field.setPreferredSize(new Dimension(0, 38));
         field.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Color.decode("#e2e8f0"), 1),
@@ -621,7 +611,7 @@ public class PostJobPage extends Page {
     private JPanel makeComboField(String label, JComboBox<String> box) {
         JPanel panel = new JPanel(new BorderLayout(0, 6));
         panel.setOpaque(false);
-        box.setFont(new Font("Arial", Font.PLAIN, 14));
+        box.setFont(new Font("Inter", Font.PLAIN, 14));
         box.setPreferredSize(new Dimension(0, 38));
         box.setBackground(Color.WHITE);
         panel.add(makeLabel(label), BorderLayout.NORTH);
@@ -646,7 +636,7 @@ public class PostJobPage extends Page {
 
     private JTextField makeNumberField() {
         JTextField field = new JTextField();
-        field.setFont(new Font("Arial", Font.PLAIN, 14));
+        field.setFont(new Font("Inter", Font.PLAIN, 14));
         field.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 4));
         ((AbstractDocument) field.getDocument()).setDocumentFilter(new DocumentFilter() {
             @Override
@@ -670,7 +660,7 @@ public class PostJobPage extends Page {
         wrap.setBackground(Color.WHITE);
         wrap.setBorder(BorderFactory.createLineBorder(Color.decode("#e2e8f0"), 1));
         JLabel peso = new JLabel("  ₱ ");
-        peso.setFont(new Font("Arial", Font.BOLD, 14));
+        peso.setFont(new Font("Inter", Font.BOLD, 14));
         peso.setForeground(Color.decode("#4b5563"));
         wrap.add(peso, BorderLayout.WEST);
         wrap.add(field, BorderLayout.CENTER);
@@ -689,7 +679,7 @@ public class PostJobPage extends Page {
 
     private JLabel makeLabel(String text) {
         JLabel label = new JLabel(text);
-        label.setFont(new Font("Arial", Font.BOLD, 14));
+        label.setFont(new Font("Inter", Font.BOLD, 14));
         label.setForeground(Color.decode("#0d0d0d"));
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
         label.setBorder(BorderFactory.createEmptyBorder(0, 0, 5, 0));
@@ -698,7 +688,7 @@ public class PostJobPage extends Page {
 
     private JTextArea makeDisplayArea(String emptyText) {
         JTextArea area = new JTextArea(emptyText);
-        area.setFont(new Font("Arial", Font.PLAIN, 13));
+        area.setFont(new Font("Inter", Font.PLAIN, 13));
         area.setForeground(Color.decode("#4b5563"));
         area.setLineWrap(true);
         area.setWrapStyleWord(true);
@@ -713,7 +703,7 @@ public class PostJobPage extends Page {
 
     private JButton makeGrayButton(String text) {
         JButton btn = new JButton(text);
-        btn.setFont(new Font("Arial", Font.PLAIN, 13));
+        btn.setFont(new Font("Inter", Font.PLAIN, 13));
         btn.setBackground(Color.WHITE);
         btn.setFocusable(false);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
@@ -725,7 +715,7 @@ public class PostJobPage extends Page {
         JButton btn = new JButton(text);
         btn.setBackground(Color.decode("#2563eb"));
         btn.setForeground(Color.WHITE);
-        btn.setFont(new Font("Arial", Font.BOLD, 13));
+        btn.setFont(new Font("Inter", Font.BOLD, 13));
         btn.setBorderPainted(false);
         btn.setOpaque(true);
         btn.setFocusable(false);
@@ -768,7 +758,7 @@ public class PostJobPage extends Page {
         List<JCheckBox> boxes = new ArrayList<>();
         for (String option : options) {
             JCheckBox box = new JCheckBox(option);
-            box.setFont(new Font("Arial", Font.PLAIN, 14));
+            box.setFont(new Font("Inter", Font.PLAIN, 14));
             box.setSelected(target.contains(option));
             box.setAlignmentX(Component.LEFT_ALIGNMENT);
             boxes.add(box);
@@ -781,7 +771,7 @@ public class PostJobPage extends Page {
             othersRow.setBorder(BorderFactory.createEmptyBorder(8, 0, 0, 0));
             othersRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 32));
             JLabel othersLabel = new JLabel("Others:");
-            othersLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+            othersLabel.setFont(new Font("Inter", Font.PLAIN, 14));
             List<String> others = new ArrayList<>(target);
             for (String o : options) others.remove(o);
             othersField.setText(String.join(", ", others));
@@ -833,7 +823,7 @@ public class PostJobPage extends Page {
         List<JRadioButton> radios = new ArrayList<>();
         for (String option : options) {
             JRadioButton radio = new JRadioButton(option);
-            radio.setFont(new Font("Arial", Font.PLAIN, 14));
+            radio.setFont(new Font("Inter", Font.PLAIN, 14));
             radio.setSelected(option.equals(current));
             radio.setAlignmentX(Component.LEFT_ALIGNMENT);
             group.add(radio);

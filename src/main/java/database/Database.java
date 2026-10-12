@@ -44,6 +44,8 @@ public class Database {
                 "password TEXT NOT NULL, " +
                 "role TEXT NOT NULL, " +
                 "company_name TEXT, " +
+                "company_logo_path TEXT, " +
+                "company_about TEXT, " +
                 "created_at TEXT DEFAULT CURRENT_TIMESTAMP)";
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
@@ -51,6 +53,12 @@ public class Database {
 
         try (Statement stmt = conn.createStatement()) {
             stmt.execute("ALTER TABLE users ADD COLUMN company_name TEXT");
+        } catch (SQLException e) {}
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("ALTER TABLE users ADD COLUMN company_logo_path TEXT");
+        } catch (SQLException e) {}
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("ALTER TABLE users ADD COLUMN company_about TEXT");
         } catch (SQLException e) {}
 
         String rememberSql = "CREATE TABLE IF NOT EXISTS remembered (" +
@@ -90,6 +98,7 @@ public class Database {
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "job_id INTEGER NOT NULL, " +
                 "name TEXT NOT NULL, " +
+                "applicant_email TEXT, " +
                 "details TEXT, " +
                 "status TEXT DEFAULT 'Under Review', " +
                 "match_percent INTEGER DEFAULT 0, " +
@@ -97,6 +106,9 @@ public class Database {
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(applicantsTable);
         }
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("ALTER TABLE applicants ADD COLUMN applicant_email TEXT");
+        } catch (SQLException e) {}
         try (Statement stmt = conn.createStatement()) {
             stmt.execute("ALTER TABLE applicants ADD COLUMN applied_at TEXT");
         } catch (SQLException e) {}
@@ -108,6 +120,17 @@ public class Database {
                 "UNIQUE(seeker_email, job_id))";
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(favTables);
+        }
+
+        String applicationsTable = "CREATE TABLE IF NOT EXISTS job_applications (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "job_id INTEGER NOT NULL, " +
+                "seeker_email TEXT NOT NULL, " +
+                "status TEXT NOT NULL DEFAULT 'Under Review', " +
+                "applied_at TEXT DEFAULT CURRENT_TIMESTAMP, " +
+                "UNIQUE(job_id, seeker_email))";
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(applicationsTable);
         }
     }
 
@@ -351,6 +374,77 @@ public class Database {
         return jobs;
     }
 
+    public static String getEmployerCompanyName(String employerEmail) {
+        String sql = "SELECT company_name FROM users WHERE email = ? AND role = 'Employer'";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, employerEmail.toLowerCase());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String company = rs.getString("company_name");
+                    if (company != null && !company.trim().isEmpty()) {
+                        return company;
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+        }
+        return employerEmail;
+    }
+
+    public static String getEmployerCompanyLogoPath(String employerEmail) {
+        String sql = "SELECT company_logo_path FROM users WHERE email = ? AND role = 'Employer'";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, employerEmail.toLowerCase());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String logo = rs.getString("company_logo_path");
+                    if (logo != null) {
+                        return logo;
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+        }
+        return "";
+    }
+
+    public static String getEmployerCompanyAbout(String employerEmail) {
+        String sql = "SELECT company_about FROM users WHERE email = ? AND role = 'Employer'";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, employerEmail.toLowerCase());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String about = rs.getString("company_about");
+                    if (about != null) {
+                        return about;
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+        }
+        return "";
+    }
+
+    public static void updateEmployerProfile(String employerEmail, String companyName, String companyLogoPath, String companyAbout) {
+        String sql = "UPDATE users SET company_name = ?, company_logo_path = ?, company_about = ? WHERE email = ? AND role = 'Employer'";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, companyName);
+            ps.setString(2, companyLogoPath);
+            ps.setString(3, companyAbout);
+            ps.setString(4, employerEmail.toLowerCase());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+        }
+    }
+
     public static void setJobFavorite(int jobId, boolean favorite) {
         String sql = "UPDATE jobs SET favorite = ? WHERE id = ?";
         try (Connection conn = DriverManager.getConnection(DB_URL);
@@ -397,9 +491,86 @@ public class Database {
         return list;
     }
 
+    // Job seeker applications
+    public static boolean applyToJob(String seekerEmail, int jobId) {
+        String sql = "INSERT OR IGNORE INTO job_applications (job_id, seeker_email) VALUES (?, ?)";
+        try (Connection conn = DriverManager.getConnection(DB_URL)) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, jobId);
+                ps.setString(2, seekerEmail.toLowerCase());
+                int inserted = ps.executeUpdate();
+                if (inserted == 0) { conn.rollback(); return false; }
+            }
+            String applicantSql = "INSERT INTO applicants (job_id, name, applicant_email, details, status, match_percent, applied_at) " +
+                    "SELECT ?, first_name || ' ' || last_name, email, email, 'Under Review', 0, CURRENT_TIMESTAMP " +
+                    "FROM users WHERE LOWER(email)=LOWER(?) AND role='Job Seeker'";
+            try (PreparedStatement ps = conn.prepareStatement(applicantSql)) {
+                ps.setInt(1, jobId);
+                ps.setString(2, seekerEmail);
+                ps.executeUpdate();
+            }
+            conn.commit();
+            return true;
+        } catch (SQLException e) {
+            System.err.println("Application save error: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public static boolean hasApplied(String seekerEmail, int jobId) {
+        String sql = "SELECT 1 FROM job_applications WHERE LOWER(seeker_email)=LOWER(?) AND job_id=?";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, seekerEmail); ps.setInt(2, jobId);
+            try (ResultSet rs = ps.executeQuery()) { return rs.next(); }
+        } catch (SQLException e) { System.err.println("Application lookup error: " + e.getMessage()); return false; }
+    }
+
+    public static List<models.JobApplication> getApplicationsForSeeker(String seekerEmail) {
+        List<models.JobApplication> list = new ArrayList<>();
+        String sql = "SELECT j.title, j.employer_email, COALESCE(j.location,''), COALESCE(j.city,''), " +
+                "COALESCE(ap.status, a.status), a.applied_at, COALESCE(j.logo_path,'') " +
+                "FROM job_applications a JOIN jobs j ON j.id=a.job_id " +
+                "LEFT JOIN applicants ap ON ap.job_id=j.id AND LOWER(ap.details)=LOWER(a.seeker_email) " +
+                "WHERE LOWER(a.seeker_email)=LOWER(?) ORDER BY a.applied_at DESC";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, seekerEmail);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String location = rs.getString(4).isEmpty() ? rs.getString(3) : rs.getString(4) + ", " + rs.getString(3);
+                    String applied = rs.getString(6);
+                    String dateText = "Applied on " + (applied == null ? "" : applied);
+                    models.JobApplication app = new models.JobApplication(rs.getString(1), rs.getString(2), location,
+                            normalizeApplicationStatus(rs.getString(5)), dateText);
+                    app.setLogoPath(rs.getString(7));
+                    list.add(app);
+                }
+            }
+        } catch (SQLException e) { System.err.println("Applications load error: " + e.getMessage()); }
+        return list;
+    }
+
+    private static String normalizeApplicationStatus(String status) {
+        if (status == null) return "Under Review";
+        if (status.equalsIgnoreCase("Submitted")) return "Applied";
+        if (status.equalsIgnoreCase("Shortlisted") || status.equalsIgnoreCase("Interview Scheduled")) return "Interview";
+        if (status.equalsIgnoreCase("Declined")) return "Rejected";
+        return status;
+    }
+
     // applicants
     public static List<Applicant> getApplicantsByJob(int jobId) {
-        String sql = "SELECT * FROM applicants WHERE job_id = ? ORDER BY applied_at DESC";
+        String sql = "SELECT a.id, a.job_id, a.name, " +
+                "COALESCE(a.applicant_email, u.email, '') AS applicant_email, " +
+                "COALESCE(j.title, '') AS job_title, " +
+                "a.details, a.status, a.match_percent, a.applied_at " +
+                "FROM applicants a " +
+                "JOIN jobs j ON j.id = a.job_id " +
+                "LEFT JOIN users u ON LOWER(TRIM(u.first_name || ' ' || u.last_name)) = LOWER(TRIM(a.name)) " +
+                "AND u.role = 'Job Seeker' " +
+                "WHERE a.job_id = ? ORDER BY a.applied_at DESC";
         List<Applicant> applicants = new ArrayList<>();
         try (Connection conn = DriverManager.getConnection(DB_URL);
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -410,6 +581,42 @@ public class Database {
                             rs.getInt("id"),
                             rs.getInt("job_id"),
                             rs.getString("name"),
+                            rs.getString("applicant_email"),
+                            rs.getString("job_title"),
+                            rs.getString("details"),
+                            rs.getString("status"),
+                            rs.getInt("match_percent"),
+                            rs.getString("applied_at")));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+        }
+        return applicants;
+    }
+
+    public static List<Applicant> getApplicantsByEmployer(String employerEmail) {
+        String sql = "SELECT a.id, a.job_id, a.name, " +
+                "COALESCE(a.applicant_email, u.email, '') AS applicant_email, " +
+                "COALESCE(j.title, '') AS job_title, " +
+                "a.details, a.status, a.match_percent, a.applied_at " +
+                "FROM applicants a " +
+                "JOIN jobs j ON j.id = a.job_id " +
+                "LEFT JOIN users u ON LOWER(TRIM(u.first_name || ' ' || u.last_name)) = LOWER(TRIM(a.name)) " +
+                "AND u.role = 'Job Seeker' " +
+                "WHERE j.employer_email = ? ORDER BY a.applied_at DESC";
+        List<Applicant> applicants = new ArrayList<>();
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, employerEmail.toLowerCase());
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    applicants.add(new Applicant(
+                            rs.getInt("id"),
+                            rs.getInt("job_id"),
+                            rs.getString("name"),
+                            rs.getString("applicant_email"),
+                            rs.getString("job_title"),
                             rs.getString("details"),
                             rs.getString("status"),
                             rs.getInt("match_percent"),
@@ -438,8 +645,13 @@ public class Database {
     }
 
     public static List<Applicant> getRecentApplicantsByEmployer(String employerEmail, int limit) {
-        String sql = "SELECT a.id, a.job_id, a.name, a.details, a.status, a.match_percent, a.applied_at " +
+        String sql = "SELECT a.id, a.job_id, a.name, " +
+                "COALESCE(a.applicant_email, u.email, '') AS applicant_email, " +
+                "COALESCE(j.title, '') AS job_title, " +
+                "a.details, a.status, a.match_percent, a.applied_at " +
                 "FROM applicants a JOIN jobs j ON j.id = a.job_id " +
+                "LEFT JOIN users u ON LOWER(TRIM(u.first_name || ' ' || u.last_name)) = LOWER(TRIM(a.name)) " +
+                "AND u.role = 'Job Seeker' " +
                 "WHERE j.employer_email = ? ORDER BY a.applied_at DESC LIMIT ?";
         List<Applicant> list = new ArrayList<>();
         try (Connection conn = DriverManager.getConnection(DB_URL);
@@ -452,6 +664,8 @@ public class Database {
                             rs.getInt("id"),
                             rs.getInt("job_id"),
                             rs.getString("name"),
+                            rs.getString("applicant_email"),
+                            rs.getString("job_title"),
                             rs.getString("details"),
                             rs.getString("status"),
                             rs.getInt("match_percent"),
@@ -470,6 +684,17 @@ public class Database {
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, status);
             ps.setInt(2, applicantId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+        }
+    }
+
+    public static void deleteApplicant(int applicantId) {
+        String sql = "DELETE FROM applicants WHERE id = ?";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, applicantId);
             ps.executeUpdate();
         } catch (SQLException e) {
             System.err.println("DB error: " + e.getMessage());

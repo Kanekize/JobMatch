@@ -1,5 +1,6 @@
 package pages;
 
+import components.RoundedLineBorder;
 import database.Database;
 import models.Applicant;
 import models.Job;
@@ -25,7 +26,7 @@ public class ViewApplicantsPage extends Page {
         this.job = job;
 
         JButton backLink = new JButton("< View Applicants");
-        backLink.setFont(new Font("Arial", Font.PLAIN, 14));
+        backLink.setFont(new Font("Inter", Font.PLAIN, 14));
         backLink.setForeground(Color.decode("#0d0d0d"));
         backLink.setBorderPainted(false);
         backLink.setContentAreaFilled(false);
@@ -46,7 +47,7 @@ public class ViewApplicantsPage extends Page {
         searchRow.setOpaque(false);
 
         searchField = new JTextField();
-        searchField.setFont(new Font("Arial", Font.PLAIN, 14));
+        searchField.setFont(new Font("Inter", Font.PLAIN, 14));
         searchField.setPreferredSize(new Dimension(0, 38));
         searchField.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Color.decode("#e2e8f0"), 1),
@@ -64,7 +65,7 @@ public class ViewApplicantsPage extends Page {
         filterButtons = new JButton[filters.length];
         for (int i = 0; i < filters.length; i++) {
             filterButtons[i] = new JButton(filters[i]);
-            filterButtons[i].setFont(new Font("Arial", Font.PLAIN, 12));
+            filterButtons[i].setFont(new Font("Inter", Font.PLAIN, 12));
             filterButtons[i].setFocusable(false);
             filterButtons[i].setCursor(new Cursor(Cursor.HAND_CURSOR));
             filterButtons[i].addActionListener(e -> {
@@ -115,7 +116,7 @@ public class ViewApplicantsPage extends Page {
         }
         if (!anyShown) {
             JLabel emptyLabel = new JLabel("No applicants found.");
-            emptyLabel.setFont(new Font("Arial", Font.PLAIN, 15));
+            emptyLabel.setFont(new Font("Inter", Font.PLAIN, 15));
             emptyLabel.setForeground(Color.decode("#6b7280"));
             emptyLabel.setBorder(BorderFactory.createEmptyBorder(20, 5, 20, 5));
             listPanel.add(emptyLabel);
@@ -143,7 +144,7 @@ public class ViewApplicantsPage extends Page {
         avatar.setBackground(Color.decode("#cbd5e1"));
         String letter = applicant.getName().substring(0, 1).toUpperCase();
         JLabel letterLabel = new JLabel(letter, SwingConstants.CENTER);
-        letterLabel.setFont(new Font("Arial", Font.BOLD, 22));
+        letterLabel.setFont(new Font("Inter", Font.BOLD, 22));
         letterLabel.setForeground(Color.decode("#12376b"));
         avatar.add(letterLabel, BorderLayout.CENTER);
         top.add(avatar, BorderLayout.WEST);
@@ -153,18 +154,18 @@ public class ViewApplicantsPage extends Page {
         center.setOpaque(false);
 
         JLabel nameLabel = new JLabel(applicant.getName());
-        nameLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        nameLabel.setFont(new Font("Inter", Font.BOLD, 16));
         nameLabel.setForeground(Color.decode("#0d0d0d"));
         nameLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel detailsLabel = new JLabel(applicant.getDetails());
-        detailsLabel.setFont(new Font("Arial", Font.PLAIN, 13));
+        detailsLabel.setFont(new Font("Inter", Font.PLAIN, 13));
         detailsLabel.setForeground(Color.decode("#6b7280"));
         detailsLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         String date = applicant.getAppliedAt() == null ? "" : applicant.getAppliedAt().split(" ")[0];
         JLabel appliedLabel = new JLabel("Applied on " + date);
-        appliedLabel.setFont(new Font("Arial", Font.PLAIN, 12));
+        appliedLabel.setFont(new Font("Inter", Font.PLAIN, 12));
         appliedLabel.setForeground(Color.decode("#9ca3af"));
         appliedLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
@@ -180,12 +181,12 @@ public class ViewApplicantsPage extends Page {
         right.setOpaque(false);
 
         JLabel matchLabel = new JLabel(applicant.getMatchPercent() + "% Match");
-        matchLabel.setFont(new Font("Arial", Font.BOLD, 18));
+        matchLabel.setFont(new Font("Inter", Font.BOLD, 18));
         matchLabel.setForeground(Color.decode("#2563eb"));
         matchLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
 
         JLabel statusLabel = new JLabel(applicant.getStatus());
-        statusLabel.setFont(new Font("Arial", Font.BOLD, 12));
+        statusLabel.setFont(new Font("Inter", Font.BOLD, 12));
         statusLabel.setOpaque(true);
         statusLabel.setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
         statusLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
@@ -216,16 +217,31 @@ public class ViewApplicantsPage extends Page {
         buttons.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JButton resumeBtn = makePlainButton("View Resume/Profile");
+        resumeBtn.addActionListener(e -> JOptionPane.showMessageDialog(this,
+                applicant.getName() + "\n\n" + applicant.getDetails(),
+                "Applicant Profile", JOptionPane.INFORMATION_MESSAGE));
+
         JButton scheduleBtn = makePlainButton("Schedule Interview");
+        scheduleBtn.addActionListener(e -> {
+            Database.updateApplicantStatus(applicant.getId(), "Interview");
+            refresh();
+        });
+
+        JButton acceptBtn = new JButton("Accept");
+        acceptBtn.setFont(new Font("Inter", Font.BOLD, 12));
+        acceptBtn.setForeground(Color.WHITE);
+        acceptBtn.setBackground(Color.decode("#16a34a"));
+        styleActionButton(acceptBtn);
+        acceptBtn.addActionListener(e -> {
+            Database.updateApplicantStatus(applicant.getId(), "Accepted");
+            refresh();
+        });
 
         JButton rejectBtn = new JButton("Reject");
-        rejectBtn.setFont(new Font("Arial", Font.BOLD, 12));
+        rejectBtn.setFont(new Font("Inter", Font.BOLD, 12));
         rejectBtn.setForeground(Color.WHITE);
         rejectBtn.setBackground(Color.decode("#dc2626"));
-        rejectBtn.setBorderPainted(false);
-        rejectBtn.setOpaque(true);
-        rejectBtn.setFocusable(false);
-        rejectBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        styleActionButton(rejectBtn);
         rejectBtn.addActionListener(e -> {
             int answer = JOptionPane.showConfirmDialog(this,
                     "Reject " + applicant.getName() + "?", "Confirm", JOptionPane.YES_NO_OPTION);
@@ -235,11 +251,36 @@ public class ViewApplicantsPage extends Page {
             }
         });
 
+        JButton removeBtn = new JButton("Remove");
+        removeBtn.setFont(new Font("Inter", Font.BOLD, 12));
+        removeBtn.setForeground(Color.WHITE);
+        removeBtn.setBackground(Color.decode("#6b7280"));
+        styleActionButton(removeBtn);
+        removeBtn.addActionListener(e -> {
+            int answer = JOptionPane.showConfirmDialog(this,
+                    "Remove " + applicant.getName() + " from this job?", "Confirm", JOptionPane.YES_NO_OPTION);
+            if (answer == JOptionPane.YES_OPTION) {
+                Database.deleteApplicant(applicant.getId());
+                refresh();
+            }
+        });
+
         JButton messageBtn = makePlainButton("Message");
+        messageBtn.addActionListener(e -> {
+            if (applicant.getEmail() == null || applicant.getEmail().isBlank()) {
+                JOptionPane.showMessageDialog(this,
+                        "This applicant does not have a messageable email yet.",
+                        "Message Applicant", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+            getDashboard().showPage(new MessagesPage(getUser(), applicant.getEmail()));
+        });
 
         buttons.add(resumeBtn);
         buttons.add(scheduleBtn);
+        buttons.add(acceptBtn);
         buttons.add(rejectBtn);
+        buttons.add(removeBtn);
         buttons.add(messageBtn);
         card.add(buttons);
 
@@ -248,10 +289,24 @@ public class ViewApplicantsPage extends Page {
 
     private JButton makePlainButton(String text) {
         JButton btn = new JButton(text);
-        btn.setFont(new Font("Arial", Font.PLAIN, 12));
+        btn.setFont(new Font("Inter", Font.PLAIN, 12));
         btn.setBackground(Color.WHITE);
         btn.setFocusable(false);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setBorder(BorderFactory.createCompoundBorder(
+                new RoundedLineBorder(Color.decode("#d7dce3"), 10, 1),
+                BorderFactory.createEmptyBorder(5, 10, 5, 10)));
+        btn.setOpaque(true);
         return btn;
+    }
+
+    private void styleActionButton(JButton btn) {
+        btn.setBorderPainted(false);
+        btn.setOpaque(true);
+        btn.setFocusable(false);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setBorder(BorderFactory.createCompoundBorder(
+                new RoundedLineBorder(btn.getBackground(), 10, 1),
+                BorderFactory.createEmptyBorder(5, 12, 5, 12)));
     }
 }

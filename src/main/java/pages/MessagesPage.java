@@ -12,6 +12,7 @@ import java.util.List;
 public class MessagesPage extends JPanel {
 
     private final User user;
+    private final String preferredContactEmail;
 
     private final DefaultListModel<MessageRepository.Contact>
             contactModel = new DefaultListModel<>();
@@ -30,7 +31,12 @@ public class MessagesPage extends JPanel {
 
     public MessagesPage(User user) {
 
+        this(user, null);
+    }
+
+    public MessagesPage(User user, String preferredContactEmail) {
         this.user = user;
+        this.preferredContactEmail = preferredContactEmail;
 
         setLayout(new BorderLayout(14, 14));
         setBackground(Color.decode("#F7F9FC"));
@@ -43,7 +49,7 @@ public class MessagesPage extends JPanel {
         JLabel heading = new JLabel("Messages");
 
         heading.setFont(
-                new Font("Arial", Font.BOLD, 26)
+                new Font("Inter", Font.BOLD, 26)
         );
 
         heading.setForeground(Color.decode("#173B63"));
@@ -111,7 +117,7 @@ public class MessagesPage extends JPanel {
         header.setOpaque(false);
 
         chatTitle.setFont(
-                new Font("Arial", Font.BOLD, 16)
+                new Font("Inter", Font.BOLD, 16)
         );
 
         header.add(
@@ -142,7 +148,7 @@ public class MessagesPage extends JPanel {
         conversationArea.setWrapStyleWord(true);
 
         conversationArea.setFont(
-                new Font("Arial", Font.PLAIN, 14)
+                new Font("Inter", Font.PLAIN, 14)
         );
 
         conversationArea.setBorder(
@@ -240,6 +246,15 @@ public class MessagesPage extends JPanel {
             }
 
             if (!contactModel.isEmpty()) {
+
+                if (preferredContactEmail != null) {
+                    for (int i = 0; i < contactModel.size(); i++) {
+                        if (contactModel.get(i).email.equalsIgnoreCase(preferredContactEmail)) {
+                            index = i;
+                            break;
+                        }
+                    }
+                }
 
                 contactList.setSelectedIndex(index);
 
