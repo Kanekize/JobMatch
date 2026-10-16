@@ -65,11 +65,11 @@ public abstract class Page extends JPanel {
         heading.setOpaque(false);
 
         JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 40));
+        titleLabel.setFont(new Font("Inter", Font.BOLD, 40));
         titleLabel.setForeground(Color.decode("#0d0d0d"));
 
         JLabel subLabel = new JLabel(subtitle);
-        subLabel.setFont(new Font("Arial", Font.PLAIN, 20));
+        subLabel.setFont(new Font("Inter", Font.PLAIN, 20));
         subLabel.setForeground(Color.decode("#4b5563"));
 
         JPanel textBox = new JPanel();

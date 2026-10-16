@@ -13,7 +13,6 @@ public class JobSeekerDashboard extends Dashboard {
         super(user);
     }
 
-    // the sidebar buttons of Job Seeker
     @Override
     public String[] getMenuItems() {
         return new String[] {"Home", "Recommendations", "Applications", "Assessment", "Messages", "Interviews"};
@@ -32,6 +31,10 @@ public class JobSeekerDashboard extends Dashboard {
             showPage(new JobSeekerHomePage(getUser()));
         } else if (name.equals("Recommendations")) {
             showPage(new JobSeekerRecommendationsPage(getUser()));
+        } else if (name.equals("Applications")) {
+            showPage(new ApplicationsPage(getUser()));
+        } else if (name.equals("Profile")) {
+            showPage(new ProfilePage(getUser()));
         } else if (name.equals("Applicants")) {
             showPage(new ApplicantsPage(getUser()));
         } else if (name.equals("Messages")) {

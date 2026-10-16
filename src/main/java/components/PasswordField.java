@@ -21,7 +21,7 @@ public class PasswordField extends JPanel implements ActionListener {
         this.setBorder(BorderFactory.createLineBorder(Color.decode("#cbd5e1"), 1));
 
         field = new JPasswordField();
-        field.setFont(new Font("Arial", Font.PLAIN, 16));
+        field.setFont(new Font("Inter", Font.PLAIN, 16));
         field.setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 6));
         hiddenChar = field.getEchoChar();
 

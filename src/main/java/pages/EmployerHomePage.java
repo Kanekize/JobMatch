@@ -44,8 +44,12 @@ public class EmployerHomePage extends Page implements ActionListener {
         // top 3 recent job post
         SectionPanel jobPostings = new SectionPanel("Your Job Postings", "View All Posting", 3, 72, false);
         jobPostings.getViewAllButton().addActionListener(e -> getDashboard().onMenuClick("Jobs"));
-        for (int i = 0; i < 3 && i < jobs.size(); i++) {
-            jobPostings.getBox(i).add(makeJobRow(jobs.get(i)), BorderLayout.CENTER);
+        if (jobs.isEmpty()) {
+            jobPostings.setEmptyState("No job posts yet.");
+        } else {
+            for (int i = 0; i < 3 && i < jobs.size(); i++) {
+                jobPostings.getBox(i).add(makeJobRow(jobs.get(i)), BorderLayout.CENTER);
+            }
         }
         addBlock(jobPostings, 20);
 
@@ -55,8 +59,12 @@ public class EmployerHomePage extends Page implements ActionListener {
         // top 3 recent applicant
         SectionPanel recentApplicantsPanel = new SectionPanel("Recent Applicants", "View All Applicants", 3, 62, false);
         recentApplicantsPanel.getViewAllButton().addActionListener(e -> getDashboard().onMenuClick("Applicants"));
-        for (int i = 0; i < 3 && i < recentApplicants.size(); i++) {
-            recentApplicantsPanel.getBox(i).add(makeApplicantRow(recentApplicants.get(i)), BorderLayout.CENTER);
+        if (recentApplicants.isEmpty()) {
+            recentApplicantsPanel.setEmptyState("No applicants yet.");
+        } else {
+            for (int i = 0; i < 3 && i < recentApplicants.size(); i++) {
+                recentApplicantsPanel.getBox(i).add(makeApplicantRow(recentApplicants.get(i)), BorderLayout.CENTER);
+            }
         }
         bottom.add(recentApplicantsPanel);
 
@@ -89,11 +97,11 @@ public class EmployerHomePage extends Page implements ActionListener {
         center.setOpaque(false);
 
         JLabel title = new JLabel(job.getTitle());
-        title.setFont(new Font("Arial", Font.BOLD, 14));
+        title.setFont(new Font("Inter", Font.BOLD, 14));
         title.setForeground(Color.decode("#0d0d0d"));
 
         JLabel sub = new JLabel(job.getCity() + " | " + job.getJobType());
-        sub.setFont(new Font("Arial", Font.PLAIN, 11));
+        sub.setFont(new Font("Inter", Font.PLAIN, 11));
         sub.setForeground(Color.decode("#6b7280"));
 
         center.add(Box.createVerticalGlue());
@@ -103,7 +111,7 @@ public class EmployerHomePage extends Page implements ActionListener {
         row.add(center, BorderLayout.CENTER);
 
         JLabel count = new JLabel(Database.countApplicants(job.getId()) + " applicants");
-        count.setFont(new Font("Arial", Font.PLAIN, 11));
+        count.setFont(new Font("Inter", Font.PLAIN, 11));
         count.setForeground(Color.decode("#2563eb"));
         row.add(count, BorderLayout.EAST);
 
@@ -120,7 +128,7 @@ public class EmployerHomePage extends Page implements ActionListener {
         avatar.setOpaque(true);
         avatar.setBackground(Color.decode("#cbd5e1"));
         avatar.setForeground(Color.decode("#12376b"));
-        avatar.setFont(new Font("Arial", Font.BOLD, 16));
+        avatar.setFont(new Font("Inter", Font.BOLD, 16));
         avatar.setPreferredSize(new Dimension(40, 40));
         row.add(avatar, BorderLayout.WEST);
 
@@ -129,11 +137,11 @@ public class EmployerHomePage extends Page implements ActionListener {
         center.setOpaque(false);
 
         JLabel name = new JLabel(applicant.getName());
-        name.setFont(new Font("Arial", Font.BOLD, 13));
+        name.setFont(new Font("Inter", Font.BOLD, 13));
         name.setForeground(Color.decode("#0d0d0d"));
 
         JLabel details = new JLabel(applicant.getDetails());
-        details.setFont(new Font("Arial", Font.PLAIN, 11));
+        details.setFont(new Font("Inter", Font.PLAIN, 11));
         details.setForeground(Color.decode("#6b7280"));
 
         center.add(Box.createVerticalGlue());
@@ -143,7 +151,7 @@ public class EmployerHomePage extends Page implements ActionListener {
         row.add(center, BorderLayout.CENTER);
 
         JLabel status = new JLabel(applicant.getStatus());
-        status.setFont(new Font("Arial", Font.BOLD, 11));
+        status.setFont(new Font("Inter", Font.BOLD, 11));
         status.setForeground(statusColor(applicant.getStatus()));
         row.add(status, BorderLayout.EAST);
 
@@ -161,7 +169,7 @@ public class EmployerHomePage extends Page implements ActionListener {
         JButton btn = new JButton(text);
         btn.setBackground(Color.decode("#2563eb"));
         btn.setForeground(Color.WHITE);
-        btn.setFont(new Font("Arial", Font.BOLD, 14));
+        btn.setFont(new Font("Inter", Font.BOLD, 14));
         btn.setPreferredSize(new Dimension(140, 40));
         btn.setBorderPainted(false);
         btn.setOpaque(true);
@@ -180,11 +188,11 @@ public class EmployerHomePage extends Page implements ActionListener {
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
         JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 13));
+        titleLabel.setFont(new Font("Inter", Font.BOLD, 13));
         titleLabel.setForeground(Color.decode("#0d0d0d"));
 
         JLabel descLabel = new JLabel(description);
-        descLabel.setFont(new Font("Arial", Font.PLAIN, 11));
+        descLabel.setFont(new Font("Inter", Font.PLAIN, 11));
         descLabel.setForeground(Color.decode("#6b7280"));
 
         JPanel textBox = new JPanel();
@@ -195,8 +203,12 @@ public class EmployerHomePage extends Page implements ActionListener {
         textBox.add(descLabel);
         textBox.add(Box.createVerticalGlue());
 
-        JLabel arrow = new JLabel(">");
-        arrow.setFont(new Font("Arial", Font.BOLD, 16));
+        java.io.File arrowFile = new java.io.File("src/images/arrow-bracket.png");
+        if (!arrowFile.exists()) arrowFile = new java.io.File("JobMatch/src/images/arrow-bracket.png");
+        ImageIcon arrowIcon = arrowFile.exists()
+                ? new ImageIcon(new ImageIcon(arrowFile.getPath()).getImage().getScaledInstance(8, 14, Image.SCALE_SMOOTH))
+                : new ImageIcon();
+        JLabel arrow = new JLabel(arrowIcon);
 
         btn.add(textBox, BorderLayout.CENTER);
         btn.add(arrow, BorderLayout.EAST);

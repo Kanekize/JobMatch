@@ -1,5 +1,6 @@
 package pages;
 
+import components.RoundedLineBorder;
 import components.StatCard;
 import database.Database;
 import models.Job;
@@ -25,7 +26,7 @@ public class EmployerJobsPage extends Page {
         JButton postJobBtn = new JButton("Post a Job");
         postJobBtn.setBackground(Color.decode("#2563eb"));
         postJobBtn.setForeground(Color.WHITE);
-        postJobBtn.setFont(new Font("Arial", Font.BOLD, 14));
+        postJobBtn.setFont(new Font("Inter", Font.BOLD, 14));
         postJobBtn.setPreferredSize(new Dimension(140, 40));
         postJobBtn.setBorderPainted(false);
         postJobBtn.setOpaque(true);
@@ -39,7 +40,7 @@ public class EmployerJobsPage extends Page {
         searchRow.setOpaque(false);
 
         searchField = new JTextField();
-        searchField.setFont(new Font("Arial", Font.PLAIN, 14));
+        searchField.setFont(new Font("Inter", Font.PLAIN, 14));
         searchField.setPreferredSize(new Dimension(0, 38));
         searchField.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Color.decode("#e2e8f0"), 1),
@@ -55,7 +56,7 @@ public class EmployerJobsPage extends Page {
         filterPanel.setOpaque(false);
 
         JComboBox<String> filterBox = new JComboBox<>(new String[]{"All", "Active", "Closed", "Favorites"});
-        filterBox.setFont(new Font("Arial", Font.PLAIN, 13));
+        filterBox.setFont(new Font("Inter", Font.PLAIN, 13));
         filterBox.setBackground(Color.WHITE);
         filterBox.setPreferredSize(new Dimension(140, 38));
         filterBox.addActionListener(e -> {
@@ -113,7 +114,7 @@ public class EmployerJobsPage extends Page {
         listPanel.removeAll();
         if (shown.isEmpty()) {
             JLabel emptyLabel = new JLabel("No job posts found.");
-            emptyLabel.setFont(new Font("Arial", Font.PLAIN, 15));
+            emptyLabel.setFont(new Font("Inter", Font.PLAIN, 15));
             emptyLabel.setForeground(Color.decode("#6b7280"));
             emptyLabel.setBorder(BorderFactory.createEmptyBorder(20, 5, 20, 5));
             emptyLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -144,14 +145,14 @@ public class EmployerJobsPage extends Page {
         center.setOpaque(false);
 
         JLabel titleLabel = new JLabel(job.getTitle());
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 18));
+        titleLabel.setFont(new Font("Inter", Font.BOLD, 18));
         titleLabel.setForeground(Color.decode("#0d0d0d"));
         titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         center.add(titleLabel);
 
         JLabel infoLabel = new JLabel(job.getCategory() + "  |  " + job.getCity() + ", " + job.getLocation()
                 + "  |  " + job.getWorkplaceType() + "  |  " + job.getJobType());
-        infoLabel.setFont(new Font("Arial", Font.PLAIN, 13));
+        infoLabel.setFont(new Font("Inter", Font.PLAIN, 13));
         infoLabel.setForeground(Color.decode("#6b7280"));
         infoLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         center.add(infoLabel);
@@ -162,7 +163,7 @@ public class EmployerJobsPage extends Page {
         JTextArea salaryArea = makeWrapText("Salary: " + job.getSalaryText() + " per month", 12, Color.decode("#4b5563"));
         center.add(salaryArea);
 
-        JPanel links = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 5));
+        JPanel links = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         links.setOpaque(false);
         links.setAlignmentX(Component.LEFT_ALIGNMENT);
 
@@ -181,23 +182,23 @@ public class EmployerJobsPage extends Page {
         right.setOpaque(false);
 
         JLabel statusLabel = new JLabel("Status: " + job.getStatus());
-        statusLabel.setFont(new Font("Arial", Font.BOLD, 13));
+        statusLabel.setFont(new Font("Inter", Font.BOLD, 13));
         statusLabel.setForeground(job.getStatus().equals("Active") ? Color.decode("#16a34a") : Color.decode("#6b7280"));
         statusLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
 
         JLabel applicantsLabel = new JLabel("Applicants: " + Database.countApplicants(job.getId()));
-        applicantsLabel.setFont(new Font("Arial", Font.PLAIN, 13));
+        applicantsLabel.setFont(new Font("Inter", Font.PLAIN, 13));
         applicantsLabel.setForeground(Color.decode("#0d0d0d"));
         applicantsLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
 
         String date = job.getCreatedAt() == null ? "" : job.getCreatedAt().split(" ")[0];
         JLabel postedLabel = new JLabel("Posted: " + date);
-        postedLabel.setFont(new Font("Arial", Font.PLAIN, 13));
+        postedLabel.setFont(new Font("Inter", Font.PLAIN, 13));
         postedLabel.setForeground(Color.decode("#6b7280"));
         postedLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
 
         JButton favBtn = new JButton(job.isFavorite() ? "unfav" : "fav");
-        favBtn.setFont(new Font("Arial", Font.PLAIN, 26));
+        favBtn.setFont(new Font("Inter", Font.PLAIN, 26));
         favBtn.setForeground(Color.decode("#f59e0b"));
         favBtn.setBorderPainted(false);
         favBtn.setContentAreaFilled(false);
@@ -223,18 +224,22 @@ public class EmployerJobsPage extends Page {
 
     private JButton makeLinkButton(String text) {
         JButton btn = new JButton(text);
-        btn.setFont(new Font("Arial", Font.BOLD, 13));
-        btn.setForeground(Color.decode("#2563eb"));
-        btn.setBorderPainted(false);
-        btn.setContentAreaFilled(false);
+        btn.setFont(new Font("Inter", Font.BOLD, 12));
+        btn.setForeground(Color.WHITE);
+        btn.setBackground(Color.decode("#2563eb"));
+        btn.setBorder(new RoundedLineBorder(Color.decode("#2563eb"), 9, 1));
+        btn.setContentAreaFilled(true);
         btn.setFocusable(false);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setOpaque(true);
+        btn.setPreferredSize(new Dimension(142, 32));
+        btn.setMargin(new Insets(0, 12, 0, 12));
         return btn;
     }
 
     static JTextArea makeWrapText(String text, int fontSize, Color color) {
         JTextArea area = new JTextArea(text);
-        area.setFont(new Font("Arial", Font.PLAIN, fontSize));
+        area.setFont(new Font("Inter", Font.PLAIN, fontSize));
         area.setForeground(color);
         area.setLineWrap(true);
         area.setWrapStyleWord(true);
@@ -260,7 +265,7 @@ public class EmployerJobsPage extends Page {
             String letter = job.getTitle() == null || job.getTitle().isEmpty()
                     ? "?" : job.getTitle().substring(0, 1).toUpperCase();
             JLabel letterLabel = new JLabel(letter, SwingConstants.CENTER);
-            letterLabel.setFont(new Font("Arial", Font.BOLD, size / 2));
+            letterLabel.setFont(new Font("Inter", Font.BOLD, size / 2));
             letterLabel.setForeground(Color.decode("#12376b"));
             box.add(letterLabel, BorderLayout.CENTER);
         }

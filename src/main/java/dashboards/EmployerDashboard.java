@@ -4,6 +4,7 @@ import components.Layout;
 import pages.EmployerHomePage;
 import pages.EmployerJobsPage;
 import pages.ApplicantsPage;
+import pages.CompanyProfilePage;
 import pages.MessagesPage;
 import pages.NotificationsPage;
 import users.User;
@@ -40,6 +41,8 @@ public class EmployerDashboard extends Dashboard {
             showPage(new EmployerJobsPage(getUser()));
         } else if (name.equals("Applicants")) {
             showPage(new ApplicantsPage(getUser()));
+        } else if (name.equals("Profile")) {
+            showPage(new CompanyProfilePage(getUser()));
         } else if (name.equals("Messages")) {
             showPage(new MessagesPage(getUser()));
         } else if (name.equals("Notifications")) {
