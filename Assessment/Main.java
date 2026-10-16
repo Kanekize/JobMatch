@@ -1,11 +1,9 @@
-
-import javax.swing.*;
+ import javax.swing.*;
 import javax.swing.border.*;
 import java.awt.*;
 import java.io.File;
 import java.util.*;
 import java.util.List;
-
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -52,10 +50,10 @@ public class Main extends JFrame {
         heading.setLayout(new BoxLayout(heading, BoxLayout.Y_AXIS));
 
         JLabel title = new JLabel("JobMatch Assessment");
-        title.setFont(new Font("Inter", Font.BOLD, 28));
+        title.setFont(new Font("Arial", Font.BOLD, 28));
 
         JLabel subtitle = new JLabel("Helps us understand your skills, interests, preferences, and needs so we can identify opportunities that better match your profile");
-        subtitle.setFont(new Font("Inter", Font.PLAIN, 12));
+        subtitle.setFont(new Font("Arial", Font.PLAIN, 12));
         subtitle.setForeground(new Color(95, 101, 112));
 
         heading.add(title);
@@ -100,13 +98,13 @@ public class Main extends JFrame {
         heading.setLayout(new BoxLayout(heading, BoxLayout.Y_AXIS));
 
         JLabel h = new JLabel(title);
-        h.setFont(new Font("Inter", Font.BOLD, 21));
+        h.setFont(new Font("Arial", Font.BOLD, 21));
         h.setForeground(ink);
         heading.add(h);
 
         if (description != null && !description.isBlank()) {
             JLabel d = new JLabel(description);
-            d.setFont(new Font("Inter", Font.PLAIN, 12));
+            d.setFont(new Font("Arial", Font.PLAIN, 12));
             d.setForeground(muted);
             heading.add(Box.createVerticalStrut(5));
             heading.add(d);
@@ -152,20 +150,18 @@ public class Main extends JFrame {
 
             saveAnswers();
 
-            
-        if (step < 6) {
-            showStep(step + 1);
-        } else {
-            if (saveAssessmentToDatabase()) {
-                JOptionPane.showMessageDialog(
-                    this,
-                    "Your assessment is complete.",
-                    "JobMatch Assessment",
-                    JOptionPane.INFORMATION_MESSAGE
-                );
+            if (step < 6) {
+                showStep(step + 1);
+            } else {
+                if (saveAssessmentToDatabase()) {
+                    JOptionPane.showMessageDialog(
+                            this,
+                            "Your assessment is complete.",
+                            "JobMatch Assessment",
+                            JOptionPane.INFORMATION_MESSAGE
+                    );
+                }
             }
-        }
-
         });
 
         p.add(back);
@@ -175,7 +171,7 @@ public class Main extends JFrame {
     }
 
     private void styleButton(JButton b, boolean primary) {
-        b.setFont(new Font("Inter", Font.PLAIN, 12));
+        b.setFont(new Font("Arial", Font.PLAIN, 12));
         b.setFocusPainted(false);
         b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         b.setBorder(new EmptyBorder(9, 22, 9, 22));
@@ -195,37 +191,45 @@ public class Main extends JFrame {
                 new EmptyBorder(14, 14, 14, 14)
         ));
 
-        JPanel resumeText = new JPanel();
+        JPanel resumeText = new JPanel(new BorderLayout(0, 8));
         resumeText.setOpaque(false);
-        resumeText.setLayout(new BoxLayout(resumeText, BoxLayout.Y_AXIS));
 
-        JLabel resumeTitle = new JLabel("Have a resume?");
-        resumeTitle.setFont(new Font("Inter", Font.BOLD, 14));
+        JLabel resumeTitle = new JLabel("Have a resume?", SwingConstants.CENTER);
+        resumeTitle.setFont(new Font("Arial", Font.BOLD, 14));
         resumeTitle.setForeground(ink);
 
-        JLabel resumeDescription = new JLabel(
-                "<html><div style='width:480px'>Choose a resume file from your computer, " +
-                "or skip this option and answer the assessment below.</div></html>"
+        JTextArea resumeDescription = new JTextArea(
+                "Choose a resume file from your computer, or skip this option and answer the assessment below."
         );
-        resumeDescription.setFont(new Font("Inter", Font.PLAIN, 12));
+        resumeDescription.setFont(new Font("Arial", Font.PLAIN, 12));
         resumeDescription.setForeground(muted);
+        resumeDescription.setLineWrap(true);
+        resumeDescription.setWrapStyleWord(true);
+        resumeDescription.setEditable(false);
+        resumeDescription.setFocusable(false);
+        resumeDescription.setOpaque(false);
+        resumeDescription.setBorder(null);
 
-        resumeLabel = new JLabel("No resume selected");
-        resumeLabel.setFont(new Font("Inter", Font.PLAIN, 11));
+        resumeLabel = new JLabel("No resume selected", SwingConstants.CENTER);
+        resumeLabel.setFont(new Font("Arial", Font.PLAIN, 11));
         resumeLabel.setForeground(muted);
 
-        resumeText.add(resumeTitle);
-        resumeText.add(Box.createVerticalStrut(5));
-        resumeText.add(resumeDescription);
-        resumeText.add(Box.createVerticalStrut(7));
-        resumeText.add(resumeLabel);
+        resumeText.add(resumeTitle, BorderLayout.NORTH);
+        resumeText.add(resumeDescription, BorderLayout.CENTER);
+        resumeText.add(resumeLabel, BorderLayout.SOUTH);
 
         JButton uploadButton = new JButton("Upload Resume");
         styleButton(uploadButton, true);
+        uploadButton.setPreferredSize(new Dimension(140, 44));
+        uploadButton.setMaximumSize(new Dimension(140, 44));
         uploadButton.addActionListener(e -> chooseResume());
 
+        JPanel uploadButtonPanel = new JPanel(new GridBagLayout());
+        uploadButtonPanel.setOpaque(false);
+        uploadButtonPanel.add(uploadButton);
+
         resumePanel.add(resumeText, BorderLayout.CENTER);
-        resumePanel.add(uploadButton, BorderLayout.EAST);
+        resumePanel.add(uploadButtonPanel, BorderLayout.EAST);
 
         c.add(resumePanel);
         c.add(Box.createVerticalStrut(18));
@@ -295,7 +299,7 @@ public class Main extends JFrame {
         JPanel card = new JPanel(new BorderLayout(6, 8));
 
         JLabel icon = new JLabel(symbol);
-        icon.setFont(new Font("Inter", Font.PLAIN, 30));
+        icon.setFont(new Font("Arial", Font.PLAIN, 30));
 
         JPanel top = new JPanel(new BorderLayout());
         top.setOpaque(false);
@@ -303,12 +307,16 @@ public class Main extends JFrame {
         top.add(radio, BorderLayout.EAST);
 
         JLabel name = new JLabel(type);
-        name.setFont(new Font("Inter", Font.BOLD, 15));
+        name.setFont(new Font("Arial", Font.BOLD, 15));
 
-        JLabel description = new JLabel(
-                "<html><div style='width:290px'>" + desc + "</div></html>"
-        );
-        description.setFont(new Font("Inter", Font.PLAIN, 12));
+        JTextArea description = new JTextArea(desc);
+        description.setFont(new Font("Arial", Font.PLAIN, 12));
+        description.setLineWrap(true);
+        description.setWrapStyleWord(true);
+        description.setEditable(false);
+        description.setFocusable(false);
+        description.setOpaque(false);
+        description.setBorder(null);
 
         JPanel text = new JPanel();
         text.setOpaque(false);
@@ -700,7 +708,13 @@ public class Main extends JFrame {
 
             needsContent.add(gap());
             needsContent.add(label("2. What position are you interested in?"));
-            needsContent.add(text("desiredPosition", "Enter a position, or type None if you're not sure"));
+            needsContent.add(combo("desiredPosition", new String[]{
+                    "Office Staff",
+                    "Customer Service Representative",
+                    "Sales Associate",
+                    "Administrative Assistant",
+                    "IT Support"
+            }));
 
             needsContent.add(gap());
             needsContent.add(label("3. What workplace environment helps you do your best work?"));
@@ -852,7 +866,7 @@ public class Main extends JFrame {
 
     private JLabel label(String text) {
         JLabel l = new JLabel(text);
-        l.setFont(new Font("Inter", Font.BOLD, 13));
+        l.setFont(new Font("Arial", Font.BOLD, 13));
         l.setForeground(new Color(34, 40, 50));
         l.setBorder(new EmptyBorder(0, 0, 7, 0));
         l.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -872,7 +886,7 @@ public class Main extends JFrame {
 
         for (String option : options) {
             JToggleButton b = new JToggleButton(option);
-            b.setFont(new Font("Inter", Font.PLAIN, 12));
+            b.setFont(new Font("Arial", Font.PLAIN, 12));
             b.setFocusPainted(false);
             b.setOpaque(true);
             b.setMargin(new Insets(10, 8, 10, 8));
@@ -914,7 +928,7 @@ public class Main extends JFrame {
 
         for (String option : options) {
             JCheckBox b = new JCheckBox(option);
-            b.setFont(new Font("Inter", Font.PLAIN, 12));
+            b.setFont(new Font("Arial", Font.PLAIN, 12));
             b.setFocusPainted(false);
             b.setOpaque(true);
             b.setBackground(Color.WHITE);
@@ -955,7 +969,7 @@ public class Main extends JFrame {
         b.setEditable(true);
         b.setSelectedIndex(-1);
         b.getEditor().setItem("");
-        b.setFont(new Font("Inter", Font.PLAIN, 12));
+        b.setFont(new Font("Arial", Font.PLAIN, 12));
         b.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
         b.setAlignmentX(Component.LEFT_ALIGNMENT);
 
@@ -966,7 +980,7 @@ public class Main extends JFrame {
 
     private JTextField text(String key, String placeholder) {
         JTextField f = new JTextField();
-        f.setFont(new Font("Inter", Font.PLAIN, 12));
+        f.setFont(new Font("Arial", Font.PLAIN, 12));
         f.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
         f.setAlignmentX(Component.LEFT_ALIGNMENT);
         f.setBorder(new CompoundBorder(
@@ -982,7 +996,7 @@ public class Main extends JFrame {
 
     private JScrollPane area(String key, String placeholder) {
         JTextArea area = new JTextArea(3, 20);
-        area.setFont(new Font("Inter", Font.PLAIN, 12));
+        area.setFont(new Font("Arial", Font.PLAIN, 12));
         area.setLineWrap(true);
         area.setWrapStyleWord(true);
         area.setBorder(new EmptyBorder(7, 9, 7, 9));
@@ -1002,7 +1016,7 @@ public class Main extends JFrame {
         progress.removeAll();
 
         JLabel stepLabel = new JLabel("Step " + (step + 1) + " of 7");
-        stepLabel.setFont(new Font("Inter", Font.PLAIN, 11));
+        stepLabel.setFont(new Font("Arial", Font.PLAIN, 11));
 
         JPanel track = new JPanel(new GridLayout(1, 7, 0, 0));
         track.setOpaque(false);
@@ -1014,13 +1028,13 @@ public class Main extends JFrame {
             JLabel circle = new JLabel(String.valueOf(i + 1), SwingConstants.CENTER);
             circle.setPreferredSize(new Dimension(30, 30));
             circle.setOpaque(true);
-            circle.setFont(new Font("Inter", Font.BOLD, 11));
+            circle.setFont(new Font("Arial", Font.BOLD, 11));
             circle.setForeground(i <= step ? Color.WHITE : new Color(75, 80, 91));
             circle.setBackground(i <= step ? blue : new Color(194, 198, 207));
             circle.setBorder(new LineBorder(circle.getBackground(), 1, true));
 
             JLabel name = new JLabel(steps[i], SwingConstants.CENTER);
-            name.setFont(new Font("Inter", Font.PLAIN, 10));
+            name.setFont(new Font("Arial", Font.PLAIN, 10));
             name.setForeground(i == step ? blue : muted);
 
             JPanel wrap = new JPanel(new GridBagLayout());
@@ -1208,11 +1222,11 @@ public class Main extends JFrame {
         top.setOpaque(false);
 
         JLabel heading = new JLabel(title);
-        heading.setFont(new Font("Inter", Font.BOLD, 14));
+        heading.setFont(new Font("Arial", Font.BOLD, 14));
         heading.setForeground(new Color(25, 43, 83));
 
         JButton edit = new JButton("✎ Edit");
-        edit.setFont(new Font("Inter", Font.PLAIN, 11));
+        edit.setFont(new Font("Arial", Font.PLAIN, 11));
         edit.setForeground(blue);
         edit.setBorderPainted(false);
         edit.setContentAreaFilled(false);
@@ -1240,16 +1254,18 @@ public class Main extends JFrame {
                 row.setBorder(new EmptyBorder(3, 0, 3, 0));
 
                 JLabel name = new JLabel(pretty(key));
-                name.setFont(new Font("Inter", Font.PLAIN, 11));
+                name.setFont(new Font("Arial", Font.PLAIN, 11));
                 name.setForeground(muted);
 
-                JLabel answer = new JLabel(
-                        "<html><div style='width:400px'>" +
-                        escapeHtml(value) +
-                        "</div></html>"
-                );
-                answer.setFont(new Font("Inter", Font.PLAIN, 11));
+                JTextArea answer = new JTextArea(value);
+                answer.setFont(new Font("Arial", Font.PLAIN, 11));
                 answer.setForeground(ink);
+                answer.setLineWrap(true);
+                answer.setWrapStyleWord(true);
+                answer.setEditable(false);
+                answer.setFocusable(false);
+                answer.setOpaque(false);
+                answer.setBorder(null);
 
                 row.add(name, BorderLayout.WEST);
                 row.add(answer, BorderLayout.CENTER);
@@ -1259,7 +1275,7 @@ public class Main extends JFrame {
 
         if (!found) {
             JLabel empty = new JLabel("No answers added yet");
-            empty.setFont(new Font("Inter", Font.ITALIC, 11));
+            empty.setFont(new Font("Arial", Font.ITALIC, 11));
             empty.setForeground(muted);
             rows.add(empty);
         }
@@ -1269,12 +1285,6 @@ public class Main extends JFrame {
 
         reviewCards.put(title, card);
         reviewContent.add(card);
-    }
-
-    private String escapeHtml(String value) {
-        return value.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;");
     }
 
     private String pretty(String key) {
@@ -1301,138 +1311,129 @@ public class Main extends JFrame {
         return Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 
-    
-private boolean saveAssessmentToDatabase() {
-    
-Properties dbProperties = new Properties();
+    private boolean saveAssessmentToDatabase() {
+        Properties dbProperties = new Properties();
 
-try (java.io.FileInputStream input =
-        new java.io.FileInputStream("db.properties")) {
-    dbProperties.load(input);
-} catch (java.io.IOException e) {
-    JOptionPane.showMessageDialog(
-            this,
-            "Could not load database settings.",
-            "Database Error",
-            JOptionPane.ERROR_MESSAGE
-    );
-    return false;
-}
-
-String url = dbProperties.getProperty("db.url");
-String username = dbProperties.getProperty("db.username");
-String password = dbProperties.getProperty("db.password");
-
-    String submissionSQL =
-            "INSERT INTO assessment_submissions () VALUES ()";
-
-    String answerSQL =
-            "INSERT INTO assessment_answers " +
-            "(submission_id, question_key, answer_value) VALUES (?, ?, ?)";
-
-    try (Connection conn = DriverManager.getConnection(url, username, password)) {
-        conn.setAutoCommit(false);
-
-        try {
-            int submissionId;
-
-            try (PreparedStatement submissionStmt =
-                    conn.prepareStatement(
-                            submissionSQL,
-                            java.sql.Statement.RETURN_GENERATED_KEYS)) {
-
-                submissionStmt.executeUpdate();
-
-                try (ResultSet keys = submissionStmt.getGeneratedKeys()) {
-                    if (!keys.next()) {
-                        throw new SQLException("Could not get submission ID.");
-                    }
-
-                    submissionId = keys.getInt(1);
-                }
-            }
-
-            try (PreparedStatement answerStmt =
-                    conn.prepareStatement(answerSQL)) {
-
-                for (Map.Entry<String, String> entry : answers.entrySet()) {
-                    answerStmt.setInt(1, submissionId);
-                    answerStmt.setString(2, entry.getKey());
-                    answerStmt.setString(3, entry.getValue());
-                    answerStmt.addBatch();
-                }
-
-                answerStmt.executeBatch();
-            }
-
-            conn.commit();
-
+        try (java.io.FileInputStream input =
+                new java.io.FileInputStream("db.properties")) {
+            dbProperties.load(input);
+        } catch (java.io.IOException e) {
             JOptionPane.showMessageDialog(
                     this,
-                    "Your assessment has been saved to the database!",
-                    "Saved Successfully",
-                    JOptionPane.INFORMATION_MESSAGE
+                    "Could not load database settings.",
+                    "Database Error",
+                    JOptionPane.ERROR_MESSAGE
             );
-
-            return true;
-
-        } catch (SQLException e) {
-            conn.rollback();
-            throw e;
+            return false;
         }
 
-    } catch (SQLException e) {
-        JOptionPane.showMessageDialog(
-                this,
-                "Could not save your assessment.\n\n" + e.getMessage(),
-                "Database Error",
-                JOptionPane.ERROR_MESSAGE
-        );
+        String url = dbProperties.getProperty("db.url");
 
-        e.printStackTrace();
-        return false;
-    }
-}
+        if (url == null || url.isBlank()) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Database URL is missing.",
+                    "Database Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            return false;
+        }
 
-    public static void main(String[] args) {
-        loadInterFont();
-        SwingUtilities.invokeLater(() -> new Main().setVisible(true));
-    }
+        String submissionSQL =
+                "INSERT INTO assessment_submissions DEFAULT VALUES";
 
-    // Inter ang font ng buong JobMatch. ginagamit dito ung same font files ng main app (src/fonts).
-    // standalone kasi ung Assessment kaya hindi pwedeng i-import ung components.Fonts
-    private static void loadInterFont() {
-        String[] folders = {"../src/fonts/", "src/fonts/", "Assessment/../src/fonts/"};
-        String[] files = {"Inter-Regular.ttf", "Inter-Bold.ttf", "Inter-Italic.ttf", "Inter-BoldItalic.ttf"};
-        GraphicsEnvironment env = GraphicsEnvironment.getLocalGraphicsEnvironment();
+        String answerSQL =
+                "INSERT INTO assessment_answers " +
+                "(submission_id, question_key, answer_value) VALUES (?, ?, ?)";
 
-        for (String folder : folders) {
-            File first = new File(folder + files[0]);
-            if (!first.exists()) continue;
-            for (String file : files) {
-                try {
-                    env.registerFont(Font.createFont(Font.TRUETYPE_FONT, new File(folder + file)));
-                } catch (Exception e) {
-                    System.out.println("Could not load font " + file + ": " + e.getMessage());
-                }
+        try (Connection conn = DriverManager.getConnection(url)) {
+            try (java.sql.Statement stmt = conn.createStatement()) {
+                stmt.execute("PRAGMA foreign_keys = ON");
+
+                stmt.execute(
+                        "CREATE TABLE IF NOT EXISTS assessment_submissions (" +
+                        "submission_id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                        "submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
+                );
+
+                stmt.execute(
+                        "CREATE TABLE IF NOT EXISTS assessment_answers (" +
+                        "answer_id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                        "submission_id INTEGER NOT NULL, " +
+                        "question_key TEXT NOT NULL, " +
+                        "answer_value TEXT, " +
+                        "FOREIGN KEY (submission_id) " +
+                        "REFERENCES assessment_submissions(submission_id) " +
+                        "ON DELETE CASCADE)"
+                );
             }
-            break;
-        }
 
-        // palitan ung default font ng Swing (dialogs, inputs, etc.) kung nahanap ung Inter
-        for (String name : env.getAvailableFontFamilyNames()) {
-            if (name.equals("Inter")) {
-                UIDefaults defaults = UIManager.getDefaults();
-                for (Object key : Collections.list(defaults.keys())) {
-                    Object value = defaults.get(key);
-                    if (value instanceof Font) {
-                        Font old = (Font) value;
-                        defaults.put(key, new javax.swing.plaf.FontUIResource(new Font("Inter", old.getStyle(), old.getSize())));
+            conn.setAutoCommit(false);
+
+            try {
+                int submissionId;
+
+                try (PreparedStatement submissionStmt =
+                        conn.prepareStatement(
+                                submissionSQL,
+                                java.sql.Statement.RETURN_GENERATED_KEYS
+                        )) {
+                    submissionStmt.executeUpdate();
+
+                    try (ResultSet keys = submissionStmt.getGeneratedKeys()) {
+                        if (!keys.next()) {
+                            throw new SQLException("Could not get submission ID.");
+                        }
+
+                        submissionId = keys.getInt(1);
                     }
                 }
-                return;
+
+                try (PreparedStatement answerStmt =
+                        conn.prepareStatement(answerSQL)) {
+                    for (Map.Entry<String, String> entry : answers.entrySet()) {
+                        answerStmt.setInt(1, submissionId);
+                        answerStmt.setString(2, entry.getKey());
+                        answerStmt.setString(3, entry.getValue());
+                        answerStmt.addBatch();
+                    }
+
+                    answerStmt.executeBatch();
+                }
+
+                conn.commit();
+
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Your assessment has been saved to the database!",
+                        "Saved Successfully",
+                        JOptionPane.INFORMATION_MESSAGE
+                );
+
+                return true;
+
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
             }
+
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Could not save your assessment.\n\n" + e.getMessage(),
+                    "Database Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+
+            e.printStackTrace();
+            return false;
         }
-        System.out.println("Inter font not found. Make sure the src/fonts folder exists.");
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            Main app = new Main();
+            app.setVisible(true);
+        });
     }
 }
