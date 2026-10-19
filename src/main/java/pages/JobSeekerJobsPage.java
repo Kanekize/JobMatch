@@ -461,14 +461,6 @@ public class JobSeekerJobsPage extends Page {
         return card;
     }
 
-    /**
-     * Creates and displays a separate view dialog frame containing the detailed
-     * 5-column filter dashboard displaying reviewer user names based on matching criteria entries.
-     */
-    /**
-     * Renders an optimized, modern 5-column dashboard panel using JPanels as interactive
-     * flat cards to inspect rating score breakdowns without using HTML or complex graphics.
-     */
     private void showDetailedReviewsBreakdown(Job job) {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Ratings Breakdown - " + job.getTitle(), true);
         dialog.setSize(560, 400);

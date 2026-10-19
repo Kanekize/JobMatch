@@ -247,7 +247,9 @@ public class EmployerJobsPage extends Page {
         links.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JButton viewBtn = makeLinkButton("View Applicants");
-        viewBtn.addActionListener(e -> getDashboard().showPage(new ViewApplicantsPage(getUser(), job)));
+        viewBtn.addActionListener(e -> {
+            getDashboard().showPage(new ViewApplicantsPage(getUser(), job, getDashboard()));
+        });
         JButton editBtn = makeLinkButton("Edit Details");
         editBtn.addActionListener(e -> getDashboard().showPage(new PostJobPage(getUser(), job)));
         links.add(viewBtn);
@@ -301,9 +303,6 @@ public class EmployerJobsPage extends Page {
         return card;
     }
 
-    /**
-     * Renders the matching 5-column list selection review tracking modal tool frame for employers.
-     */
     private void showDetailedReviewsBreakdown(Job job) {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Ratings Breakdown - " + job.getTitle(), true);
         dialog.setSize(560, 400);

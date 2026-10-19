@@ -1,6 +1,7 @@
 package pages;
 
 import components.RoundedLineBorder;
+import database.ApplicantRepository;
 import database.Database;
 import models.Applicant;
 import models.Job;
@@ -10,9 +11,10 @@ import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
+import java.sql.SQLException;
 import java.util.List;
 
-// view applicants sa specific post ( not the general view applicant)
+// view applicants sa specific post (not the general view applicant)
 public class ViewApplicantsPage extends Page {
 
     private Job job;
@@ -20,12 +22,14 @@ public class ViewApplicantsPage extends Page {
     private String currentFilter = "All";
     private JButton[] filterButtons;
     private JPanel listPanel;
+    private dashboards.Dashboard dashboard;
 
-    public ViewApplicantsPage(User user, Job job) {
+    public ViewApplicantsPage(User user, Job job, dashboards.Dashboard dashboard) {
         super(user);
         this.job = job;
+        this.dashboard = dashboard;
 
-        JButton backLink = new JButton("< View Applicants");
+        JButton backLink = new JButton("< Back to My Job Posts");
         backLink.setFont(new Font("Inter", Font.PLAIN, 14));
         backLink.setForeground(Color.decode("#0d0d0d"));
         backLink.setBorderPainted(false);
@@ -33,7 +37,8 @@ public class ViewApplicantsPage extends Page {
         backLink.setFocusable(false);
         backLink.setCursor(new Cursor(Cursor.HAND_CURSOR));
         backLink.setHorizontalAlignment(SwingConstants.LEFT);
-        backLink.addActionListener(e -> getDashboard().onMenuClick("Jobs"));
+
+        backLink.addActionListener(e -> dashboard.onMenuClick("Jobs"));
 
         JPanel backWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         backWrap.setOpaque(false);
@@ -217,14 +222,20 @@ public class ViewApplicantsPage extends Page {
         buttons.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JButton resumeBtn = makePlainButton("View Resume/Profile");
-        resumeBtn.addActionListener(e -> JOptionPane.showMessageDialog(this,
-                applicant.getName() + "\n\n" + applicant.getDetails(),
-                "Applicant Profile", JOptionPane.INFORMATION_MESSAGE));
+        resumeBtn.addActionListener(e -> {
+            dashboard.showPage(new pages.ViewProfilePage(getUser(), applicant, job, dashboard, () -> dashboard.showPage(this)));
+        });
 
         JButton scheduleBtn = makePlainButton("Schedule Interview");
         scheduleBtn.addActionListener(e -> {
-            Database.updateApplicantStatus(applicant.getId(), "Interview");
-            refresh();
+            //TODO: after mong matapos ung interview schedule go to that page
+            try {
+                Database.updateApplicantStatus(applicant.getId(), "Interview");
+                database.ApplicantRepository.updateStatus(applicant.getId(), job.getEmployerEmail(), "Interview Scheduled");
+                refresh();
+            } catch (java.sql.SQLException ex) {
+                System.err.println("Database error scheduling interview: " + ex.getMessage());
+            }
         });
 
         JButton acceptBtn = new JButton("Accept");
@@ -233,8 +244,26 @@ public class ViewApplicantsPage extends Page {
         acceptBtn.setBackground(Color.decode("#16a34a"));
         styleActionButton(acceptBtn);
         acceptBtn.addActionListener(e -> {
-            Database.updateApplicantStatus(applicant.getId(), "Accepted");
-            refresh();
+            int answer = JOptionPane.showConfirmDialog(this,
+                    "Accept " + applicant.getName() + "?", "Confirm", JOptionPane.YES_NO_OPTION);
+            if (answer == JOptionPane.YES_OPTION) {
+                String reason = JOptionPane.showInputDialog(this,
+                        "Enter the reason or welcome message for " + applicant.getName() + ":",
+                        "Acceptance Reason", JOptionPane.PLAIN_MESSAGE);
+                //default txt
+                if (reason == null) return;
+                if (reason.trim().isEmpty()) {
+                    reason = "Congratulations! Your application has been accepted.";
+                }
+                try {
+                    Database.updateApplicantStatus(applicant.getId(), "Accepted");
+                    database.ApplicantRepository.updateStatus(applicant.getId(), job.getEmployerEmail(), "Accepted");
+                    database.MessageRepository.sendMessage(job.getEmployerEmail(), applicant.getEmail(), reason.trim());
+                    refresh();
+                } catch (Exception ex) {
+                    System.err.println("Database error accepting applicant: " + ex.getMessage());
+                }
+            }
         });
 
         JButton rejectBtn = new JButton("Reject");
@@ -246,8 +275,21 @@ public class ViewApplicantsPage extends Page {
             int answer = JOptionPane.showConfirmDialog(this,
                     "Reject " + applicant.getName() + "?", "Confirm", JOptionPane.YES_NO_OPTION);
             if (answer == JOptionPane.YES_OPTION) {
-                Database.updateApplicantStatus(applicant.getId(), "Rejected");
-                refresh();
+                String reason = JOptionPane.showInputDialog(this,
+                        "Enter the reason for declining " + applicant.getName() + ":",
+                        "Rejection Reason", JOptionPane.PLAIN_MESSAGE);
+                if (reason == null) return;
+                if (reason.trim().isEmpty()) {
+                    reason = "Thank you for applying. Unfortunately, we have decided to reject you because you didn't meet our needs";
+                }
+                try {
+                    Database.updateApplicantStatus(applicant.getId(), "Rejected");
+                    database.ApplicantRepository.updateStatus(applicant.getId(), job.getEmployerEmail(), "Declined");
+                    database.MessageRepository.sendMessage(job.getEmployerEmail(), applicant.getEmail(), reason.trim());
+                    refresh();
+                } catch (Exception ex) {
+                    System.err.println("Database error rejecting applicant: " + ex.getMessage());
+                }
             }
         });
 
@@ -260,8 +302,12 @@ public class ViewApplicantsPage extends Page {
             int answer = JOptionPane.showConfirmDialog(this,
                     "Remove " + applicant.getName() + " from this job?", "Confirm", JOptionPane.YES_NO_OPTION);
             if (answer == JOptionPane.YES_OPTION) {
-                Database.deleteApplicant(applicant.getId());
-                refresh();
+                try {
+                    Database.deleteApplicant(applicant.getId());
+                    refresh();
+                } catch (Exception ex) {
+                    System.err.println("Database error removing applicant: " + ex.getMessage());
+                }
             }
         });
 
@@ -273,9 +319,8 @@ public class ViewApplicantsPage extends Page {
                         "Message Applicant", JOptionPane.INFORMATION_MESSAGE);
                 return;
             }
-            getDashboard().showPage(new MessagesPage(getUser(), applicant.getEmail()));
+            dashboard.showPage(new MessagesPage(getUser(), applicant.getEmail()));
         });
-
         buttons.add(resumeBtn);
         buttons.add(scheduleBtn);
         buttons.add(acceptBtn);
@@ -283,7 +328,6 @@ public class ViewApplicantsPage extends Page {
         buttons.add(removeBtn);
         buttons.add(messageBtn);
         card.add(buttons);
-
         return card;
     }
 
