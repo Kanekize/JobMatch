@@ -1,7 +1,9 @@
 package pages;
+import components.RoundedLineBorder;
 import javax.swing.*;
 import javax.swing.border.*;
 import java.awt.*;
+import java.awt.Desktop;
 import java.io.File;
 import java.util.*;
 import java.util.List;
@@ -34,6 +36,13 @@ public class AssessmentPage extends Page {
     private List<File> uploadedCertFiles = new ArrayList<>();
     private JPanel certThumbsContainer;
     private JRadioButton certYesRadio, certNoRadio;
+    private JPanel resumePanel;
+    private JLabel resumeFileNameLabel;
+    private JLabel resumeMetaLabel;
+    private JPanel resumeActionsPanel;
+    private JButton uploadButton;
+    private final Map<String, JLabel> typeIconLabels = new LinkedHashMap<>();
+    private boolean skipSaveOnNextShowStep = false;
 
     public AssessmentPage(User user) {
         super(user);
@@ -82,7 +91,7 @@ public class AssessmentPage extends Page {
         this.add(main, BorderLayout.CENTER);
 
         updateProgress();
-        showStep(0);
+        initializeAssessmentEntry();
     }
 
     private JPanel makePage(String title, String description, String key, JPanel content) {
@@ -138,8 +147,8 @@ public class AssessmentPage extends Page {
         JButton back = new JButton("Back");
         JButton next = new JButton("Continue");
 
-        styleButton(back, false);
-        styleButton(next, true);
+        styleNavButton(back, false);
+        styleNavButton(next, true);
 
         back.addActionListener(e -> showStep(Math.max(0, step - 1)));
 
@@ -171,11 +180,22 @@ public class AssessmentPage extends Page {
         return p;
     }
 
+    private void styleNavButton(JButton button, boolean primary) {
+        styleButton(button, primary);
+        button.setBorder(new CompoundBorder(
+                new RoundedLineBorder(primary ? blue : new Color(210, 215, 225), 18, 1),
+                new EmptyBorder(9, 22, 9, 22)
+        ));
+    }
+
     private void styleButton(JButton b, boolean primary) {
         b.setFont(new Font("Arial", Font.PLAIN, 12));
         b.setFocusPainted(false);
         b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        b.setBorder(new EmptyBorder(9, 22, 9, 22));
+        b.setBorder(new CompoundBorder(
+                new RoundedLineBorder(primary ? blue : new Color(210, 215, 225), 12, 1),
+                new EmptyBorder(9, 22, 9, 22)
+        ));
         b.setOpaque(true);
         b.setBackground(primary ? blue : new Color(235, 237, 241));
         b.setForeground(primary ? Color.WHITE : ink);
@@ -184,70 +204,92 @@ public class AssessmentPage extends Page {
     private JPanel buildProfilePage() {
         JPanel c = content();
 
-        JPanel resumePanel = new JPanel();
-        resumePanel.setLayout(new BoxLayout(resumePanel, BoxLayout.Y_AXIS));
+        resumePanel = new JPanel(new BorderLayout(12, 0));
         resumePanel.setOpaque(true);
         resumePanel.setBackground(paleBlue);
         resumePanel.setBorder(new CompoundBorder(
                 new LineBorder(new Color(198, 216, 250), 1, true),
-                new EmptyBorder(16, 16, 16, 16)
+                new EmptyBorder(12, 14, 12, 14)
         ));
+        resumePanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 112));
 
-        JLabel resumeTitle = new JLabel("Have a resume?", SwingConstants.CENTER);
+        JPanel resumeText = new JPanel();
+        resumeText.setOpaque(false);
+        resumeText.setLayout(new BoxLayout(resumeText, BoxLayout.Y_AXIS));
+
+        JLabel resumeTitle = new JLabel("Have a resume?");
         resumeTitle.setFont(new Font("Arial", Font.BOLD, 14));
         resumeTitle.setForeground(ink);
-        resumeTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+        resumeTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JTextArea resumeDescription = new JTextArea("Choose a resume file from your computer, or skip this option and answer the assessment below.");
+        JLabel resumeDescription = new JLabel("<html>Upload your resume if available, or skip and continue the assessment.</html>");
         resumeDescription.setFont(new Font("Arial", Font.PLAIN, 12));
         resumeDescription.setForeground(muted);
-        resumeDescription.setLineWrap(true);
-        resumeDescription.setWrapStyleWord(true);
-        resumeDescription.setEditable(false);
-        resumeDescription.setFocusable(false);
-        resumeDescription.setOpaque(false);
-        resumeDescription.setAlignmentX(Component.CENTER_ALIGNMENT);
+        resumeDescription.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        resumePreviewBox = new JLabel("No Image Preview", SwingConstants.CENTER);
-        resumePreviewBox.setPreferredSize(new Dimension(110, 140));
-        resumePreviewBox.setMaximumSize(new Dimension(110, 140));
-        resumePreviewBox.setBorder(new LineBorder(new Color(194, 198, 207), 1, true));
-        resumePreviewBox.setBackground(Color.WHITE);
-        resumePreviewBox.setOpaque(true);
-        resumePreviewBox.setAlignmentX(Component.CENTER_ALIGNMENT);
+        resumeFileNameLabel = new JLabel("No resume selected");
+        resumeFileNameLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        resumeFileNameLabel.setForeground(ink);
+        resumeFileNameLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        resumeLabel = new JLabel("No resume selected", SwingConstants.CENTER);
-        resumeLabel.setFont(new Font("Arial", Font.PLAIN, 11));
-        resumeLabel.setForeground(muted);
-        resumeLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        resumeMetaLabel = new JLabel("Upload PDF, DOC, or DOCX");
+        resumeMetaLabel.setFont(new Font("Arial", Font.PLAIN, 11));
+        resumeMetaLabel.setForeground(muted);
+        resumeMetaLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JButton uploadButton = new JButton("Upload Resume");
+        resumeText.add(resumeTitle);
+        resumeText.add(Box.createVerticalStrut(4));
+        resumeText.add(resumeDescription);
+        resumeText.add(Box.createVerticalStrut(4));
+        resumeText.add(resumeFileNameLabel);
+        resumeText.add(Box.createVerticalStrut(3));
+        resumeText.add(resumeMetaLabel);
+
+        uploadButton = new JButton("Upload Resume");
         styleButton(uploadButton, true);
-        uploadButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+        uploadButton.setPreferredSize(new Dimension(132, 38));
+        uploadButton.setMaximumSize(new Dimension(132, 38));
         uploadButton.addActionListener(e -> chooseResume());
 
-        resumePanel.add(resumeTitle);
-        resumePanel.add(Box.createVerticalStrut(6));
-        resumePanel.add(resumeDescription);
-        resumePanel.add(Box.createVerticalStrut(12));
-        resumePanel.add(resumePreviewBox);
-        resumePanel.add(Box.createVerticalStrut(6));
-        resumePanel.add(resumeLabel);
-        resumePanel.add(Box.createVerticalStrut(8));
-        resumePanel.add(uploadButton);
+        JPanel uploadButtonPanel = new JPanel(new GridBagLayout());
+        uploadButtonPanel.setOpaque(false);
+        uploadButtonPanel.add(uploadButton);
+
+        resumeActionsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 18, 0));
+        resumeActionsPanel.setOpaque(false);
+        JButton viewBtn = linkButton("View");
+        JButton replaceBtn = linkButton("Replace");
+        JButton deleteBtn = linkButton("Delete");
+        viewBtn.addActionListener(e -> viewResume());
+        replaceBtn.addActionListener(e -> chooseResume());
+        deleteBtn.addActionListener(e -> clearResume());
+        resumeActionsPanel.add(viewBtn);
+        resumeActionsPanel.add(replaceBtn);
+        resumeActionsPanel.add(deleteBtn);
+
+        JPanel resumeRight = new JPanel();
+        resumeRight.setOpaque(false);
+        resumeRight.setLayout(new BoxLayout(resumeRight, BoxLayout.Y_AXIS));
+        uploadButtonPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        resumeActionsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        resumeRight.add(uploadButtonPanel);
+        resumeRight.add(Box.createVerticalStrut(6));
+        resumeRight.add(resumeActionsPanel);
+
+        resumePanel.add(resumeText, BorderLayout.CENTER);
+        resumePanel.add(resumeRight, BorderLayout.EAST);
 
         c.add(resumePanel);
-        c.add(Box.createVerticalStrut(18));
-        c.add(label("Or continue by answering the assessment."));
-        c.add(Box.createVerticalStrut(8));
+        c.add(Box.createVerticalStrut(10));
 
-        profileGrid = new JPanel(new GridLayout(2, 2, 14, 14));
+        profileGrid = new JPanel(new GridLayout(2, 2, 10, 10));
         profileGrid.setOpaque(false);
-        addTypeCard(profileGrid, "Student", "Currently studying or looking for internships and flexible opportunities.", "🎓");
-        addTypeCard(profileGrid, "Regular Applicant", "Looking for employment based on your skills and professional goals.", "▣");
-        addTypeCard(profileGrid, "Senior Citizen", "Looking for opportunities that fit your experience and preferred working conditions.", "♙");
-        addTypeCard(profileGrid, "PWD (Person with Disability)", "Looking for opportunities that consider your skills and workplace accessibility needs.", "♿");
+profileGrid.setMaximumSize(new Dimension(Integer.MAX_VALUE, 260));        addTypeCard(profileGrid, "Student", "Currently studying or looking for internships and flexible opportunities.", "graduate-hat.png", "graduate-hat-active.png", "🎓");
+        addTypeCard(profileGrid, "Regular Applicant", "Looking for employment based on your skills and professional goals.", "suitcase.png", "suitcase-active.png", "▣");
+        addTypeCard(profileGrid, "Senior Citizen", "Looking for opportunities that fit your experience and preferred working conditions.", "person.png", "person-active.png", "♙");
+        addTypeCard(profileGrid, "PWD (Person with Disability)", "Looking for opportunities that consider your skills and workplace accessibility needs.", "disabled.png", "disableda-active.png", "♿");
         c.add(profileGrid);
+        updateResumeCardState();
 
         return makePage("Which best describes you?", "Choose the profile that fits you best.", "0", c);
     }
@@ -260,24 +302,12 @@ public class AssessmentPage extends Page {
 
         if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             resumeFile = chooser.getSelectedFile();
-            resumeLabel.setText("Selected: " + resumeFile.getName());
-            resumeLabel.setForeground(blue);
             answers.put("Resume File", resumeFile.getName());
-
-            String ext = resumeFile.getName().toLowerCase();
-            if (ext.endsWith(".png") || ext.endsWith(".jpg") || ext.endsWith(".jpeg")) {
-                ImageIcon orig = new ImageIcon(resumeFile.getAbsolutePath());
-                Image scaled = orig.getImage().getScaledInstance(110, 140, Image.SCALE_SMOOTH);
-                resumePreviewBox.setText("");
-                resumePreviewBox.setIcon(new ImageIcon(scaled));
-            } else {
-                resumePreviewBox.setIcon(null);
-                resumePreviewBox.setText("📄 Document Loaded");
-            }
+            updateResumeCardState();
         }
     }
 
-    private void addTypeCard(JPanel grid, String type, String desc, String symbol) {
+    private void addTypeCard(JPanel grid, String type, String desc, String inactiveIconFile, String activeIconFile, String fallbackSymbol) {
         JRadioButton radio = new JRadioButton();
         radio.setOpaque(false);
 
@@ -285,10 +315,18 @@ public class AssessmentPage extends Page {
         typeButtons.put(type, radio);
         radio.setSelected(type.equals(userType));
 
-        JPanel card = new JPanel(new BorderLayout(6, 8));
+        JPanel card = new JPanel(new BorderLayout(8, 8));
+        card.setPreferredSize(new Dimension(0, 118));
+        card.setMinimumSize(new Dimension(0, 118));
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 118));
 
-        JLabel icon = new JLabel(symbol);
-        icon.setFont(new Font("Arial", Font.PLAIN, 30));
+        JLabel icon = new JLabel();
+        icon.setFont(new Font("Arial", Font.PLAIN, 23));
+        icon.putClientProperty("inactiveIconFile", inactiveIconFile);
+        icon.putClientProperty("activeIconFile", activeIconFile);
+        icon.putClientProperty("fallbackSymbol", fallbackSymbol);
+        typeIconLabels.put(type, icon);
+        updateTypeCardIcon(icon, radio.isSelected());
 
         JPanel top = new JPanel(new BorderLayout());
         top.setOpaque(false);
@@ -296,22 +334,17 @@ public class AssessmentPage extends Page {
         top.add(radio, BorderLayout.EAST);
 
         JLabel name = new JLabel(type);
-        name.setFont(new Font("Arial", Font.BOLD, 15));
+        name.setFont(new Font("Arial", Font.BOLD, 14));
 
-        JTextArea description = new JTextArea(desc);
-        description.setFont(new Font("Arial", Font.PLAIN, 12));
-        description.setLineWrap(true);
-        description.setWrapStyleWord(true);
-        description.setEditable(false);
-        description.setFocusable(false);
-        description.setOpaque(false);
-        description.setBorder(null);
+        JLabel description = new JLabel("<html>" + desc + "</html>");
+        description.setFont(new Font("Arial", Font.PLAIN, 11));
+        description.setForeground(muted);
 
         JPanel text = new JPanel();
         text.setOpaque(false);
         text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
         text.add(name);
-        text.add(Box.createVerticalStrut(7));
+        text.add(Box.createVerticalStrut(5));
         text.add(description);
 
         card.add(top, BorderLayout.NORTH);
@@ -356,6 +389,10 @@ public class AssessmentPage extends Page {
         for (int i = 0; i < list.length; i++) {
             JPanel card = (JPanel) list[i];
             boolean selected = types[i].equals(userType);
+            JLabel iconLabel = typeIconLabels.get(types[i]);
+            if (iconLabel != null) {
+                updateTypeCardIcon(iconLabel, selected);
+            }
 
             card.setBackground(selected ? paleBlue : Color.WHITE);
             card.setOpaque(true);
@@ -365,7 +402,7 @@ public class AssessmentPage extends Page {
                             1,
                             true
                     ),
-                    new EmptyBorder(15, 16, 15, 16)
+                    new EmptyBorder(12, 13, 12, 13)
             ));
         }
     }
@@ -781,7 +818,8 @@ public class AssessmentPage extends Page {
     }
 
     private JPanel buildReviewPage() {
-        reviewContent = new JPanel(new GridLayout(0, 2, 10, 10));
+        reviewContent = new JPanel();
+        reviewContent.setLayout(new BoxLayout(reviewContent, BoxLayout.Y_AXIS));
         reviewContent.setOpaque(false);
 
         return makePage(
@@ -1070,6 +1108,86 @@ public class AssessmentPage extends Page {
         return scroll;
     }
 
+    private void updateTypeCardIcon(JLabel iconLabel, boolean active) {
+        String activeIcon = (String) iconLabel.getClientProperty("activeIconFile");
+        String inactiveIcon = (String) iconLabel.getClientProperty("inactiveIconFile");
+        String fallback = (String) iconLabel.getClientProperty("fallbackSymbol");
+        ImageIcon icon = loadIcon(active ? activeIcon : inactiveIcon, 24, 24);
+        if (icon != null) {
+            iconLabel.setIcon(icon);
+            iconLabel.setText("");
+        } else {
+            iconLabel.setIcon(null);
+            iconLabel.setText(fallback != null ? fallback : "");
+        }
+    }
+
+    private void updateResumeCardState() {
+        if (resumePanel == null || resumeFileNameLabel == null || resumeMetaLabel == null || uploadButton == null || resumeActionsPanel == null) {
+            return;
+        }
+        boolean hasResume = resumeFile != null;
+        if (hasResume) {
+            String fileName = resumeFile.getName();
+            resumeFileNameLabel.setText(fileName);
+            resumeFileNameLabel.setForeground(ink);
+            long fileSizeKb = Math.max(1L, resumeFile.length() / 1024L);
+            String extension = fileName.contains(".")
+                    ? fileName.substring(fileName.lastIndexOf('.') + 1).toUpperCase()
+                    : "FILE";
+            resumeMetaLabel.setText(extension + " • " + (fileSizeKb / 1024.0 < 1 ? fileSizeKb + " KB" : String.format("%.1f MB", fileSizeKb / 1024.0)));
+            resumeMetaLabel.setForeground(muted);
+            uploadButton.setVisible(false);
+            resumeActionsPanel.setVisible(true);
+        } else {
+            resumeFileNameLabel.setText("No resume selected");
+            resumeFileNameLabel.setForeground(ink);
+            resumeMetaLabel.setText("Upload PDF, DOC, or DOCX");
+            resumeMetaLabel.setForeground(muted);
+            uploadButton.setVisible(true);
+            resumeActionsPanel.setVisible(false);
+        }
+        resumePanel.revalidate();
+        resumePanel.repaint();
+    }
+
+    private JButton linkButton(String text) {
+        JButton b = new JButton(text);
+        b.setFont(new Font("Arial", Font.PLAIN, 12));
+        b.setForeground(blue);
+        b.setBorderPainted(false);
+        b.setContentAreaFilled(false);
+        b.setFocusable(false);
+        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        return b;
+    }
+
+    private void viewResume() {
+        if (resumeFile == null || !resumeFile.exists()) return;
+        try {
+            if (Desktop.isDesktopSupported()) {
+                Desktop.getDesktop().open(resumeFile);
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Unable to open resume file.", "Resume", JOptionPane.WARNING_MESSAGE);
+        }
+    }
+
+    private void clearResume() {
+        resumeFile = null;
+        answers.remove("Resume File");
+        updateResumeCardState();
+    }
+
+    private ImageIcon loadIcon(String fileName, int width, int height) {
+        if (fileName == null || fileName.isBlank()) return null;
+        File file = new File("src/images/" + fileName);
+        if (!file.exists()) file = new File("JobMatch/src/images/" + fileName);
+        if (!file.exists()) return null;
+        Image image = new ImageIcon(file.getPath()).getImage().getScaledInstance(width, height, Image.SCALE_SMOOTH);
+        return new ImageIcon(image);
+    }
+
     private void updateProgress() {
         progress.removeAll();
 
@@ -1083,13 +1201,29 @@ public class AssessmentPage extends Page {
             JPanel item = new JPanel(new BorderLayout(0, 4));
             item.setOpaque(false);
 
-            JLabel circle = new JLabel(String.valueOf(i + 1), SwingConstants.CENTER);
+            final Color circleColor = i <= step ? blue : new Color(194, 198, 207);
+            final Color textColor = i <= step ? Color.WHITE : new Color(75, 80, 91);
+
+            JPanel circle = new JPanel(new GridBagLayout()) {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setColor(circleColor);
+                    g2.fillOval(0, 0, getWidth() - 1, getHeight() - 1);
+                    g2.dispose();
+                    super.paintComponent(g);
+                }
+            };
+            circle.setOpaque(false);
             circle.setPreferredSize(new Dimension(30, 30));
-            circle.setOpaque(true);
-            circle.setFont(new Font("Arial", Font.BOLD, 11));
-            circle.setForeground(i <= step ? Color.WHITE : new Color(75, 80, 91));
-            circle.setBackground(i <= step ? blue : new Color(194, 198, 207));
-            circle.setBorder(new LineBorder(circle.getBackground(), 1, true));
+            circle.setMinimumSize(new Dimension(30, 30));
+            circle.setMaximumSize(new Dimension(30, 30));
+
+            JLabel circleNumber = new JLabel(String.valueOf(i + 1), SwingConstants.CENTER);
+            circleNumber.setFont(new Font("Arial", Font.BOLD, 11));
+            circleNumber.setForeground(textColor);
+            circle.add(circleNumber);
 
             JLabel name = new JLabel(steps[i], SwingConstants.CENTER);
             name.setFont(new Font("Arial", Font.PLAIN, 10));
@@ -1111,7 +1245,7 @@ public class AssessmentPage extends Page {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setStroke(new BasicStroke(3));
 
-                int y = 15;
+                int y = 18;
                 int start = getWidth() / 14;
                 int end = getWidth() - start;
 
@@ -1131,8 +1265,9 @@ public class AssessmentPage extends Page {
         };
 
         line.setOpaque(false);
-        line.setPreferredSize(new Dimension(100, 35));
+        line.setPreferredSize(new Dimension(100, 60));
         line.setLayout(new BorderLayout());
+        line.setBorder(new EmptyBorder(2, 0, 0, 0));
         line.add(track, BorderLayout.CENTER);
 
         progress.add(stepLabel, BorderLayout.NORTH);
@@ -1142,7 +1277,11 @@ public class AssessmentPage extends Page {
     }
 
     private void showStep(int next) {
-        saveAnswers();
+        if (!skipSaveOnNextShowStep) {
+            saveAnswers();
+        } else {
+            skipSaveOnNextShowStep = false;
+        }
 
         step = next;
         updateProgress();
@@ -1271,28 +1410,38 @@ public class AssessmentPage extends Page {
         JPanel card = new JPanel(new BorderLayout(8, 8));
         card.setBackground(Color.WHITE);
         card.setBorder(new CompoundBorder(
-                new LineBorder(new Color(225, 230, 239), 1, true),
-                new EmptyBorder(12, 14, 12, 14)
+                new RoundedLineBorder(new Color(225, 230, 239), 12, 1),
+                new EmptyBorder(10, 12, 10, 12)
         ));
+        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
 
         JPanel top = new JPanel(new BorderLayout());
         top.setOpaque(false);
 
         JLabel heading = new JLabel(title);
-        heading.setFont(new Font("Arial", Font.BOLD, 14));
-        heading.setForeground(new Color(25, 43, 83));
+        heading.setFont(new Font("Arial", Font.BOLD, 15));
+        heading.setForeground(new Color(18, 56, 140));
 
-        JButton edit = new JButton("✎ Edit");
+        JButton edit = new JButton("Edit");
         edit.setFont(new Font("Arial", Font.PLAIN, 11));
         edit.setForeground(blue);
-        edit.setBorderPainted(false);
-        edit.setContentAreaFilled(false);
+        edit.setBorder(new CompoundBorder(
+                new RoundedLineBorder(new Color(191, 219, 254), 10, 1),
+                new EmptyBorder(4, 10, 4, 10)));
+        edit.setBackground(Color.WHITE);
+        edit.setOpaque(true);
         edit.setFocusPainted(false);
         edit.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         edit.addActionListener(e -> showStep(editStep));
 
         top.add(heading, BorderLayout.WEST);
         top.add(edit, BorderLayout.EAST);
+
+        JPanel divider = new JPanel();
+        divider.setPreferredSize(new Dimension(1, 1));
+        divider.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+        divider.setBackground(new Color(231, 235, 243));
 
         JPanel rows = new JPanel();
         rows.setOpaque(false);
@@ -1306,17 +1455,17 @@ public class AssessmentPage extends Page {
             if (value != null && !value.isBlank()) {
                 found = true;
 
-                JPanel row = new JPanel(new BorderLayout(10, 3));
+                JPanel row = new JPanel(new BorderLayout(6, 3));
                 row.setOpaque(false);
-                row.setBorder(new EmptyBorder(3, 0, 3, 0));
+                row.setBorder(new EmptyBorder(4, 0, 5, 0));
 
                 JLabel name = new JLabel(pretty(key));
-                name.setFont(new Font("Arial", Font.PLAIN, 11));
-                name.setForeground(muted);
+                name.setFont(new Font("Arial", Font.BOLD, 10));
+                name.setForeground(new Color(109, 118, 133));
 
                 JTextArea answer = new JTextArea(value);
-                answer.setFont(new Font("Arial", Font.PLAIN, 11));
-                answer.setForeground(ink);
+                answer.setFont(new Font("Arial", Font.PLAIN, 12));
+                answer.setForeground(new Color(28, 33, 43));
                 answer.setLineWrap(true);
                 answer.setWrapStyleWord(true);
                 answer.setEditable(false);
@@ -1324,7 +1473,7 @@ public class AssessmentPage extends Page {
                 answer.setOpaque(false);
                 answer.setBorder(null);
 
-                row.add(name, BorderLayout.WEST);
+                row.add(name, BorderLayout.NORTH);
                 row.add(answer, BorderLayout.CENTER);
                 rows.add(row);
             }
@@ -1337,11 +1486,111 @@ public class AssessmentPage extends Page {
             rows.add(empty);
         }
 
-        card.add(top, BorderLayout.NORTH);
+        JPanel topWrap = new JPanel();
+        topWrap.setOpaque(false);
+        topWrap.setLayout(new BoxLayout(topWrap, BoxLayout.Y_AXIS));
+        topWrap.add(top);
+        topWrap.add(Box.createVerticalStrut(8));
+        topWrap.add(divider);
+        topWrap.add(Box.createVerticalStrut(8));
+
+        card.add(topWrap, BorderLayout.NORTH);
         card.add(rows, BorderLayout.CENTER);
 
         reviewCards.put(title, card);
         reviewContent.add(card);
+        reviewContent.add(Box.createVerticalStrut(10));
+    }
+
+    private void initializeAssessmentEntry() {
+        Map<String, String> latestAnswers = database.Database.getLatestAssessment(getUser().getEmail());
+        if (latestAnswers.isEmpty()) {
+            showStep(0);
+            return;
+        }
+
+        int result = JOptionPane.showConfirmDialog(
+                this,
+                "You already completed an assessment.\n\nTake assessment again?",
+                "Assessment Found",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE
+        );
+
+        if (result == JOptionPane.YES_OPTION) {
+            showStep(0);
+            return;
+        }
+
+        loadAssessmentDraft(latestAnswers);
+        skipSaveOnNextShowStep = true;
+        showStep(6);
+    }
+
+    private void loadAssessmentDraft(Map<String, String> latestAnswers) {
+        answers.clear();
+        answers.putAll(latestAnswers);
+        userType = answers.getOrDefault("Profile Type", userType);
+
+        for (Map.Entry<String, JRadioButton> entry : typeButtons.entrySet()) {
+            entry.getValue().setSelected(entry.getKey().equals(userType));
+        }
+        styleTypeCards();
+        rebuildNeeds();
+
+        for (Map.Entry<String, JComponent> entry : fields.entrySet()) {
+            String key = entry.getKey();
+            String value = answers.get(key);
+            if (value == null) continue;
+
+            JComponent component = entry.getValue();
+            if (component instanceof JComboBox) {
+                JComboBox<?> combo = (JComboBox<?>) component;
+                if (combo.isEditable()) {
+                    combo.getEditor().setItem(value);
+                } else {
+                    combo.setSelectedItem(value);
+                }
+            } else if (component instanceof JTextField) {
+                ((JTextField) component).setText(value);
+            } else if (component instanceof JTextArea) {
+                ((JTextArea) component).setText(value);
+            } else if (component instanceof JPanel) {
+                Set<String> selectedValues = new LinkedHashSet<>();
+                for (String part : value.split("\\s*,\\s*")) {
+                    if (!part.isBlank()) selectedValues.add(part.trim());
+                }
+                JPanel panel = (JPanel) component;
+                for (Component child : panel.getComponents()) {
+                    if (child instanceof AbstractButton) {
+                        AbstractButton btn = (AbstractButton) child;
+                        btn.setSelected(selectedValues.contains(btn.getText()));
+                    }
+                }
+                updatePanelButtonStyles(panel);
+            }
+        }
+    }
+
+    private void updatePanelButtonStyles(JPanel panel) {
+        List<JToggleButton> toggles = new ArrayList<>();
+        for (Component child : panel.getComponents()) {
+            if (child instanceof JToggleButton) {
+                toggles.add((JToggleButton) child);
+            } else if (child instanceof JCheckBox) {
+                JCheckBox b = (JCheckBox) child;
+                boolean selected = b.isSelected();
+                b.setBackground(selected ? paleBlue : Color.WHITE);
+                b.setForeground(selected ? blue : ink);
+                b.setBorder(new CompoundBorder(
+                        new LineBorder(selected ? blue : new Color(213, 218, 227), 1, true),
+                        new EmptyBorder(10, 11, 10, 11)
+                ));
+            }
+        }
+        if (!toggles.isEmpty()) {
+            refreshChoiceButtons(toggles);
+        }
     }
 
     private String pretty(String key) {

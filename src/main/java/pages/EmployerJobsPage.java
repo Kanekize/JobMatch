@@ -37,7 +37,7 @@ public class EmployerJobsPage extends Page {
         postJobBtn.addActionListener(e -> getDashboard().showPage(new PostJobPage(getUser())));
         addBlock(makeHeading("My Job Posts", "Manage, track, and monitor your active and draft job listings.", postJobBtn), 15);
 
-        // search bar invinsible row
+
         JPanel searchRow = new JPanel(new BorderLayout(10, 0));
         searchRow.setOpaque(false);
 
@@ -57,7 +57,7 @@ public class EmployerJobsPage extends Page {
         JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         filterPanel.setOpaque(false);
 
-        // star rating filter
+
         JComboBox<String> starFilterBox = new JComboBox<>(new String[]{"All Stars", "5 Stars", "4 Stars & up", "3 Stars & up"});
         starFilterBox.setFont(new Font("Inter", Font.PLAIN, 13));
         starFilterBox.setBackground(Color.WHITE);
@@ -68,7 +68,7 @@ public class EmployerJobsPage extends Page {
         });
         filterPanel.add(starFilterBox);
 
-        // date sorting
+
         JComboBox<String> sortDateBox = new JComboBox<>(new String[]{"Most Recent", "Oldest First"});
         sortDateBox.setFont(new Font("Inter", Font.PLAIN, 13));
         sortDateBox.setBackground(Color.WHITE);
@@ -169,14 +169,14 @@ public class EmployerJobsPage extends Page {
     }
 
     private JPanel makeJobCard(Job job) {
-        JPanel card = new JPanel(new BorderLayout(15, 0));
+        JPanel card = new JPanel(new BorderLayout(16, 0));
         card.setBackground(Color.WHITE);
         card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Color.decode("#e5e9f0"), 1),
-                BorderFactory.createEmptyBorder(15, 18, 15, 18)));
-        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
+                new RoundedLineBorder(Color.decode("#dde3ec"), 14, 1),
+                BorderFactory.createEmptyBorder(16, 18, 16, 18)));
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
 
-        card.add(makeLogoBox(job, 64), BorderLayout.WEST);
+        card.add(makeLogoBox(job, 72), BorderLayout.WEST);
 
         JPanel center = new JPanel();
         center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
@@ -187,7 +187,7 @@ public class EmployerJobsPage extends Page {
         titleRow.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel titleLabel = new JLabel(job.getTitle());
-        titleLabel.setFont(new Font("Inter", Font.BOLD, 18));
+        titleLabel.setFont(new Font("Inter", Font.BOLD, 17));
         titleLabel.setForeground(Color.decode("#0d0d0d"));
         titleRow.add(titleLabel);
 
@@ -228,6 +228,7 @@ public class EmployerJobsPage extends Page {
         }
 
         center.add(titleRow);
+        center.add(Box.createVerticalStrut(3));
 
         JLabel infoLabel = new JLabel(job.getCategory() + "  |  " + job.getCity() + ", " + job.getLocation()
                 + "  |  " + job.getWorkplaceType() + "  |  " + job.getJobType());
@@ -235,26 +236,13 @@ public class EmployerJobsPage extends Page {
         infoLabel.setForeground(Color.decode("#6b7280"));
         infoLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         center.add(infoLabel);
+        center.add(Box.createVerticalStrut(6));
 
         JTextArea skillsArea = makeWrapText("Skills: " + job.getSkillsText(), 12, Color.decode("#4b5563"));
         center.add(skillsArea);
 
-        JTextArea salaryArea = makeWrapText("Salary: " + job.getSalaryText() + " per month", 12, Color.decode("#4b5563"));
+        JTextArea salaryArea = makeWrapText("Salary: " + job.getSalaryText() + " per month", 12, Color.decode("#1d4ed8"));
         center.add(salaryArea);
-
-        JPanel links = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
-        links.setOpaque(false);
-        links.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JButton viewBtn = makeLinkButton("View Applicants");
-        viewBtn.addActionListener(e -> {
-            getDashboard().showPage(new ViewApplicantsPage(getUser(), job, getDashboard()));
-        });
-        JButton editBtn = makeLinkButton("Edit Details");
-        editBtn.addActionListener(e -> getDashboard().showPage(new PostJobPage(getUser(), job)));
-        links.add(viewBtn);
-        links.add(editBtn);
-        center.add(links);
 
         card.add(center, BorderLayout.CENTER);
 
@@ -262,42 +250,60 @@ public class EmployerJobsPage extends Page {
         right.setLayout(new BoxLayout(right, BoxLayout.Y_AXIS));
         right.setOpaque(false);
 
-        JLabel statusLabel = new JLabel("Status: " + job.getStatus());
-        statusLabel.setFont(new Font("Inter", Font.BOLD, 13));
-        statusLabel.setForeground(job.getStatus().equals("Active") ? Color.decode("#16a34a") : Color.decode("#6b7280"));
+        JPanel topStats = new JPanel();
+        topStats.setLayout(new BoxLayout(topStats, BoxLayout.Y_AXIS));
+        topStats.setOpaque(false);
+
+        JLabel statusLabel = makeStatusBadge(job.getStatus());
         statusLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
 
-        JLabel applicantsLabel = new JLabel("Applicants: " + Database.countApplicants(job.getId()));
-        applicantsLabel.setFont(new Font("Inter", Font.PLAIN, 13));
-        applicantsLabel.setForeground(Color.decode("#0d0d0d"));
-        applicantsLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
-
         String date = job.getCreatedAt() == null ? "" : job.getCreatedAt().split(" ")[0];
-        JLabel postedLabel = new JLabel("Posted: " + date);
-        postedLabel.setFont(new Font("Inter", Font.PLAIN, 13));
+        JLabel postedLabel = new JLabel("Posted " + date);
+        postedLabel.setFont(new Font("Inter", Font.PLAIN, 12));
         postedLabel.setForeground(Color.decode("#6b7280"));
         postedLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
 
-        JButton favBtn = new JButton(job.isFavorite() ? "unfav" : "fav");
-        favBtn.setFont(new Font("Inter", Font.PLAIN, 26));
-        favBtn.setForeground(Color.decode("#f59e0b"));
-        favBtn.setBorderPainted(false);
-        favBtn.setContentAreaFilled(false);
-        favBtn.setFocusable(false);
-        favBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        favBtn.setAlignmentX(Component.RIGHT_ALIGNMENT);
+        JLabel applicantsLabel = new JLabel(Database.countApplicants(job.getId()) + " applicants");
+        applicantsLabel.setFont(new Font("Inter", Font.BOLD, 12));
+        applicantsLabel.setForeground(Color.decode("#2563eb"));
+        applicantsLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
+
+        topStats.add(statusLabel);
+        topStats.add(Box.createVerticalStrut(8));
+        topStats.add(applicantsLabel);
+        topStats.add(Box.createVerticalStrut(4));
+        topStats.add(postedLabel);
+
+        JPanel statsWrap = new JPanel(new BorderLayout());
+        statsWrap.setOpaque(false);
+        statsWrap.add(topStats, BorderLayout.EAST);
+        statsWrap.setAlignmentX(Component.RIGHT_ALIGNMENT);
+        right.add(statsWrap);
+        right.add(Box.createVerticalStrut(18));
+
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        actions.setOpaque(false);
+
+        JButton favBtn = makeFavoriteButton(job.isFavorite());
         favBtn.addActionListener(e -> {
             Database.setJobFavorite(job.getId(), !job.isFavorite());
             refresh();
         });
+        JButton viewBtn = makeLinkButton("View Applicants");
+        viewBtn.addActionListener(e -> getDashboard().showPage(new ViewApplicantsPage(getUser(), job, getDashboard())));
+        JButton editBtn = makeSecondaryButton("Edit Details");
+        editBtn.addActionListener(e -> getDashboard().showPage(new PostJobPage(getUser(), job)));
 
-        right.add(statusLabel);
-        right.add(Box.createVerticalStrut(6));
-        right.add(applicantsLabel);
-        right.add(Box.createVerticalStrut(6));
-        right.add(postedLabel);
-        right.add(Box.createVerticalStrut(6));
-        right.add(favBtn);
+        favBtn.setPreferredSize(new Dimension(102, 32));
+        viewBtn.setPreferredSize(new Dimension(130, 32));
+        editBtn.setPreferredSize(new Dimension(104, 32));
+
+        actions.add(favBtn);
+        actions.add(viewBtn);
+        actions.add(editBtn);
+        actions.setAlignmentX(Component.RIGHT_ALIGNMENT);
+        right.add(actions);
+        right.setPreferredSize(new Dimension(360, right.getPreferredSize().height));
         card.add(right, BorderLayout.EAST);
 
         return card;
@@ -384,9 +390,57 @@ public class EmployerJobsPage extends Page {
         btn.setFocusable(false);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btn.setOpaque(true);
-        btn.setPreferredSize(new Dimension(142, 32));
+        btn.setPreferredSize(new Dimension(160, 32));
         btn.setMargin(new Insets(0, 12, 0, 12));
         return btn;
+    }
+
+    private JButton makeSecondaryButton(String text) {
+        JButton btn = new JButton(text);
+        btn.setFont(new Font("Inter", Font.BOLD, 12));
+        btn.setForeground(Color.decode("#1d4ed8"));
+        btn.setBackground(Color.WHITE);
+        btn.setBorder(new RoundedLineBorder(Color.decode("#bfdbfe"), 9, 1));
+        btn.setContentAreaFilled(true);
+        btn.setFocusable(false);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setOpaque(true);
+        btn.setPreferredSize(new Dimension(160, 32));
+        btn.setMargin(new Insets(0, 12, 0, 12));
+        return btn;
+    }
+
+    private JButton makeFavoriteButton(boolean isFavorite) {
+        JButton btn = new JButton(isFavorite ? "★ Favorited" : "☆ Favorite");
+        btn.setFont(new Font("Inter", Font.BOLD, 12));
+        btn.setForeground(isFavorite ? Color.decode("#1d4ed8") : Color.decode("#374151"));
+        btn.setBackground(isFavorite ? Color.decode("#e1efff") : Color.decode("#f8fafc"));
+        btn.setBorder(new RoundedLineBorder(isFavorite ? Color.decode("#93c5fd") : Color.decode("#d7dce3"), 9, 1));
+        btn.setContentAreaFilled(true);
+        btn.setFocusable(false);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setOpaque(true);
+        btn.setPreferredSize(new Dimension(160, 32));
+        btn.setMargin(new Insets(0, 12, 0, 12));
+        return btn;
+    }
+
+    private JLabel makeStatusBadge(String status) {
+        JLabel label = new JLabel(status);
+        label.setFont(new Font("Inter", Font.BOLD, 11));
+        label.setOpaque(true);
+        label.setBorder(BorderFactory.createCompoundBorder(
+                new RoundedLineBorder(status.equals("Active") ? Color.decode("#86efac") : Color.decode("#d1d5db"), 8, 1),
+                BorderFactory.createEmptyBorder(4, 10, 4, 10)
+        ));
+        if (status.equals("Active")) {
+            label.setBackground(Color.decode("#ecfdf3"));
+            label.setForeground(Color.decode("#15803d"));
+        } else {
+            label.setBackground(Color.decode("#f3f4f6"));
+            label.setForeground(Color.decode("#4b5563"));
+        }
+        return label;
     }
     static JTextArea makeWrapText(String text, int fontSize, Color color) {
         JTextArea area = new JTextArea(text);
@@ -394,10 +448,14 @@ public class EmployerJobsPage extends Page {
         area.setForeground(color);
         area.setLineWrap(true);
         area.setWrapStyleWord(true);
+        int approxCharsPerLine = 90;
+        int rowEstimate = Math.max(1, (int) Math.ceil((double) Math.max(0, text.length()) / approxCharsPerLine));
+        area.setRows(rowEstimate);
         area.setEditable(false);
         area.setOpaque(false);
         area.setFocusable(false);
         area.setAlignmentX(Component.LEFT_ALIGNMENT);
+        area.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
         area.setBorder(BorderFactory.createEmptyBorder(3, 0, 3, 0));
         return area;
     }

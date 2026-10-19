@@ -73,7 +73,7 @@ public class PostJobPage extends Page {
     private JTextField titleField;
     private JComboBox<String> categoryBox, jobTypeBox, workplaceBox;
     private JComboBox<String> statusBox;
-    private JTextField minSalaryField, maxSalaryField;
+    private JTextField salaryField;
     private JTextArea descArea;
     private JLabel descCounter;
 
@@ -238,11 +238,8 @@ public class PostJobPage extends Page {
         if (workplaceBox.getSelectedIndex() == 0) {
             return warn("Please choose a Workplace Type.");
         }
-        if (minSalaryField.getText().isEmpty() || maxSalaryField.getText().isEmpty()) {
-            return warn("Please fill out the Salary Range.");
-        }
-        if (Integer.parseInt(minSalaryField.getText()) > Integer.parseInt(maxSalaryField.getText())) {
-            return warn("The minimum salary should not be bigger than the maximum salary.");
+        if (salaryField.getText().isEmpty()) {
+            return warn("Please fill out the Salary.");
         }
         if (descArea.getText().trim().isEmpty()) {
             return warn("Please fill out the Job Description.");
@@ -423,8 +420,7 @@ public class PostJobPage extends Page {
         panel.add(makeReviewRow("Job Category", (String) categoryBox.getSelectedItem()));
         panel.add(makeReviewRow("Job Type", (String) jobTypeBox.getSelectedItem()));
         panel.add(makeReviewRow("Workplace Type", (String) workplaceBox.getSelectedItem()));
-        panel.add(makeReviewRow("Salary Range",
-                "₱" + minSalaryField.getText() + " - ₱" + maxSalaryField.getText() + " per month"));
+        panel.add(makeReviewRow("Salary", "₱" + salaryField.getText() + " per month"));
         panel.add(makeReviewRow("Job Description", descArea.getText().trim()));
         panel.add(makeReviewRow("Required Skills", String.join(", ", selectedSkills)));
         panel.add(makeReviewRow("Workplace Accommodations Available", accYes.isSelected() ? "Yes" : "No"));
@@ -481,8 +477,7 @@ public class PostJobPage extends Page {
         job.setCategory((String) categoryBox.getSelectedItem());
         job.setJobType((String) jobTypeBox.getSelectedItem());
         job.setWorkplaceType((String) workplaceBox.getSelectedItem());
-        job.setSalaryMin(Integer.parseInt(minSalaryField.getText()));
-        job.setSalaryMax(Integer.parseInt(maxSalaryField.getText()));
+        job.setSalary(Integer.parseInt(salaryField.getText()));
         job.setDescription(descArea.getText().trim());
         job.setSkills(new ArrayList<>(selectedSkills));
         job.setAccommodationsAvailable(accYes.isSelected());
@@ -512,8 +507,7 @@ public class PostJobPage extends Page {
         categoryBox.setSelectedItem(editingJob.getCategory());
         jobTypeBox.setSelectedItem(editingJob.getJobType());
         workplaceBox.setSelectedItem(editingJob.getWorkplaceType());
-        minSalaryField.setText(String.valueOf(editingJob.getSalaryMin()));
-        maxSalaryField.setText(String.valueOf(editingJob.getSalaryMax()));
+        salaryField.setText(String.valueOf(editingJob.getSalary()));
         descArea.setText(editingJob.getDescription());
 
         if (statusBox != null) {
@@ -622,15 +616,9 @@ public class PostJobPage extends Page {
     private JPanel makeSalaryField() {
         JPanel panel = new JPanel(new BorderLayout(0, 6));
         panel.setOpaque(false);
-        panel.add(makeLabel("Salary Range * (numbers only)"), BorderLayout.NORTH);
-
-        JPanel boxes = new JPanel(new GridLayout(1, 2, 10, 0));
-        boxes.setOpaque(false);
-        minSalaryField = makeNumberField();
-        maxSalaryField = makeNumberField();
-        boxes.add(wrapPeso(minSalaryField));
-        boxes.add(wrapPeso(maxSalaryField));
-        panel.add(boxes, BorderLayout.CENTER);
+        panel.add(makeLabel("Salary * (numbers only)"), BorderLayout.NORTH);
+        salaryField = makeNumberField();
+        panel.add(wrapPeso(salaryField), BorderLayout.CENTER);
         return panel;
     }
 

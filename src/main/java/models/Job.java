@@ -86,6 +86,15 @@ public class Job {
         this.salaryMax = salaryMax;
     }
 
+    public int getSalary() {
+        return salaryMin > 0 ? salaryMin : salaryMax;
+    }
+
+    public void setSalary(int salary) {
+        this.salaryMin = salary;
+        this.salaryMax = salary;
+    }
+
     public String getDescription() {
         return description;
     }
@@ -182,6 +191,6 @@ public class Job {
     }
 
     public String getSalaryText() {
-        return "₱" + String.format("%,d", salaryMin) + " - ₱" + String.format("%,d", salaryMax);
+        return "₱" + String.format("%,d", getSalary());
     }
 }

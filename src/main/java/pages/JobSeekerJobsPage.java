@@ -9,6 +9,8 @@ import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -259,7 +261,7 @@ public class JobSeekerJobsPage extends Page {
                 boolean any = false;
                 for (String c : checked) if (job.getSkills().contains(c)) any = true;
                 if (!any) return false;
-            } else if (group.equals("Salary Range")) {
+            } else if (group.equals("Salary")) {
                 if (!matchesSalary(checked, job)) return false;
             } else if (group.equals("Experience Required")) {
                 String needed = job.isExperienceRequired() ? "Yes" : "No";
@@ -282,8 +284,7 @@ public class JobSeekerJobsPage extends Page {
     }
 
     private boolean matchesSalary(List<String> checked, Job job) {
-        int jobMin = job.getSalaryMin();
-        int jobMax = job.getSalaryMax();
+        int salary = job.getSalary();
 
         for (String range : checked) {
             int filterMin, filterMax;
@@ -292,7 +293,7 @@ public class JobSeekerJobsPage extends Page {
             else if (range.equals(salaryRanges[2])) { filterMin = 30001; filterMax = 50000; }
             else { filterMin = 50001; filterMax = Integer.MAX_VALUE; }
 
-            if (jobMax >= filterMin && jobMin <= filterMax) return true;
+            if (salary >= filterMin && salary <= filterMax) return true;
         }
         return false;
     }
@@ -301,19 +302,26 @@ public class JobSeekerJobsPage extends Page {
         JPanel card = new JPanel(new BorderLayout(14, 0));
         card.setBackground(Color.WHITE);
         card.setBorder(BorderFactory.createCompoundBorder(
-                new RoundedLineBorder(Color.decode("#d7dce3"), 14, 1),
-                BorderFactory.createEmptyBorder(14, 16, 14, 16)));
-        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
+                new RoundedLineBorder(Color.decode("#e5e7eb"), 16, 1),
+                BorderFactory.createEmptyBorder(16, 18, 16, 18)));
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 190));
 
-        card.add(EmployerJobsPage.makeLogoBox(job, 56), BorderLayout.WEST);
+        JPanel logoWrap = new JPanel(new GridBagLayout());
+        logoWrap.setOpaque(false);
+        logoWrap.add(EmployerJobsPage.makeLogoBox(job, 118));
+        card.add(logoWrap, BorderLayout.WEST);
 
         JPanel center = new JPanel();
         center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
         center.setOpaque(false);
 
-        JPanel titleRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        final int textColumnOffset = 28;
+
+        JPanel titleRow = new JPanel();
         titleRow.setOpaque(false);
+        titleRow.setLayout(new BoxLayout(titleRow, BoxLayout.X_AXIS));
         titleRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+        titleRow.setBorder(BorderFactory.createEmptyBorder(0, textColumnOffset, 0, 0));
 
         JLabel titleLabel = new JLabel(job.getTitle());
         titleLabel.setFont(new Font("Inter", Font.BOLD, 17));
@@ -324,6 +332,8 @@ public class JobSeekerJobsPage extends Page {
         int totalReviewsCount = Database.getTotalRatingCount(job.getId());
 
         if (totalReviewsCount > 0) {
+            titleRow.add(Box.createHorizontalStrut(8));
+
             JLabel starIconLabel = new JLabel();
             java.io.File file = new java.io.File("src/images/star.png");
             if (!file.exists()) file = new java.io.File("JobMatch/src/images/star.png");
@@ -355,25 +365,43 @@ public class JobSeekerJobsPage extends Page {
         }
 
         center.add(titleRow);
+        center.add(Box.createVerticalStrut(5));
 
-        JLabel companyLabel = new JLabel(Database.getEmployerCompanyName(job.getEmployerEmail()));
-        companyLabel.setFont(new Font("Inter", Font.PLAIN, 13));
-        companyLabel.setForeground(Color.decode("#374151"));
-        companyLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JPanel companyRow = makeJobInfoRow("building-blue.png", Database.getEmployerCompanyName(job.getEmployerEmail()));
+        companyRow.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JPanel locationRow = makeJobInfoRow("job-location.png", job.getCity() + ", " + job.getLocation());
-        locationRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JPanel setupRow = makeJobInfoRow(
+                "job-location.png",
+                job.getCity() + ", " + job.getLocation() + "  •  " + job.getJobType() + "  •  " + job.getWorkplaceType());
+        setupRow.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JPanel typeRow = makeJobInfoRow("job-type.png", job.getJobType() + "  |  " + job.getWorkplaceType());
-        typeRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JPanel salaryRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        salaryRow.setOpaque(false);
+        JLabel salaryLabel = new JLabel(formatFixedSalary(job) + " per month");
+        salaryLabel.setFont(new Font("Inter", Font.BOLD, 15));
+        salaryLabel.setForeground(Color.decode("#1f2937"));
+        salaryRow.add(salaryLabel);
+        salaryRow.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel salaryLabel = new JLabel(job.getSalaryText() + " per month");
-        salaryLabel.setFont(new Font("Inter", Font.BOLD, 12));
-        salaryLabel.setForeground(Color.decode("#4b5563"));
-        salaryLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JPanel identityGroup = new JPanel();
+        identityGroup.setOpaque(false);
+        identityGroup.setLayout(new BoxLayout(identityGroup, BoxLayout.Y_AXIS));
+        identityGroup.setAlignmentX(Component.LEFT_ALIGNMENT);
+        identityGroup.setBorder(BorderFactory.createEmptyBorder(0, textColumnOffset, 0, 0));
+        identityGroup.add(companyRow);
 
-        JPanel chips = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        JPanel workSetupGroup = new JPanel();
+        workSetupGroup.setOpaque(false);
+        workSetupGroup.setLayout(new BoxLayout(workSetupGroup, BoxLayout.Y_AXIS));
+        workSetupGroup.setAlignmentX(Component.LEFT_ALIGNMENT);
+        workSetupGroup.setBorder(BorderFactory.createEmptyBorder(0, textColumnOffset, 0, 0));
+        workSetupGroup.add(setupRow);
+        workSetupGroup.add(Box.createVerticalStrut(2));
+        workSetupGroup.add(salaryRow);
+
+        JPanel chips = new JPanel();
         chips.setOpaque(false);
+        chips.setLayout(new BoxLayout(chips, BoxLayout.X_AXIS));
         chips.setAlignmentX(Component.LEFT_ALIGNMENT);
         for (int i = 0; i < Math.min(3, job.getSkills().size()); i++) {
             JLabel chip = new JLabel(job.getSkills().get(i));
@@ -383,28 +411,37 @@ public class JobSeekerJobsPage extends Page {
             chip.setBackground(Color.decode("#e1efff"));
             chip.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
             chips.add(chip);
+            if (i < Math.min(3, job.getSkills().size()) - 1) {
+                chips.add(Box.createHorizontalStrut(6));
+            }
         }
 
-        center.add(companyLabel);
-        center.add(locationRow);
-        center.add(typeRow);
-        center.add(salaryLabel);
-        center.add(Box.createVerticalStrut(4));
-        center.add(chips);
+        JPanel skillsGroup = new JPanel();
+        skillsGroup.setOpaque(false);
+        skillsGroup.setLayout(new BoxLayout(skillsGroup, BoxLayout.Y_AXIS));
+        skillsGroup.setAlignmentX(Component.LEFT_ALIGNMENT);
+        skillsGroup.setBorder(BorderFactory.createEmptyBorder(0, textColumnOffset, 0, 0));
+        skillsGroup.add(chips);
+
+        center.add(identityGroup);
+        center.add(Box.createVerticalStrut(6));
+        center.add(workSetupGroup);
+        center.add(Box.createVerticalStrut(8));
+        center.add(skillsGroup);
         card.add(center, BorderLayout.CENTER);
 
         JPanel right = new JPanel(new GridBagLayout());
         right.setOpaque(false);
-        right.setPreferredSize(new Dimension(175, 0));
-        right.setMaximumSize(new Dimension(175, Integer.MAX_VALUE));
+        right.setPreferredSize(new Dimension(230, 0));
+        right.setMaximumSize(new Dimension(230, Integer.MAX_VALUE));
 
         JPanel matchBox = new JPanel(new GridBagLayout());
-        matchBox.setBackground(Color.decode("#e8f1ff"));
+        matchBox.setBackground(Color.decode("#f5f9ff"));
         matchBox.setBorder(BorderFactory.createCompoundBorder(
-                new RoundedLineBorder(Color.decode("#d6e2f5"), 10, 1),
-                BorderFactory.createEmptyBorder(10, 12, 10, 12)));
-        matchBox.setMaximumSize(new Dimension(175, 110));
-        matchBox.setPreferredSize(new Dimension(175, 110));
+                new RoundedLineBorder(Color.decode("#d9e7ff"), 12, 1),
+                BorderFactory.createEmptyBorder(8, 14, 8, 14)));
+        matchBox.setMaximumSize(new Dimension(160, 78));
+        matchBox.setPreferredSize(new Dimension(160, 78));
 
         JPanel matchInner = new JPanel();
         matchInner.setOpaque(false);
@@ -412,39 +449,20 @@ public class JobSeekerJobsPage extends Page {
         matchInner.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JLabel matchLabel = new JLabel("0% Match");
-        matchLabel.setFont(new Font("Inter", Font.BOLD, 18));
+        matchLabel.setFont(new Font("Inter", Font.BOLD, 22));
         matchLabel.setForeground(Color.decode("#2563eb"));
         matchLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JTextArea matchNote = new JTextArea("Matches your skills\nand setup.");
-        matchNote.setFont(new Font("Inter", Font.PLAIN, 11));
-        matchNote.setForeground(Color.decode("#6b7280"));
-        matchNote.setLineWrap(true);
-        matchNote.setWrapStyleWord(true);
-        matchNote.setOpaque(false);
-        matchNote.setEditable(false);
-        matchNote.setFocusable(false);
-        matchNote.setBorder(BorderFactory.createEmptyBorder());
-        matchNote.setAlignmentX(Component.CENTER_ALIGNMENT);
-        matchNote.setPreferredSize(new Dimension(130, 32));
-        matchNote.setMaximumSize(new Dimension(130, 32));
-
-        JButton viewBtn = new JButton("View Job");
-        viewBtn.setBackground(Color.decode("#2563eb"));
-        viewBtn.setForeground(Color.WHITE);
-        viewBtn.setFont(new Font("Inter", Font.BOLD, 12));
-        viewBtn.setBorderPainted(false);
-        viewBtn.setOpaque(true);
-        viewBtn.setFocusable(false);
-        viewBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        viewBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
-        viewBtn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
-        viewBtn.addActionListener(e -> getDashboard().showPage(new JobDetailsPage(getUser(), job)));
-
         matchInner.add(matchLabel);
-        matchInner.add(matchNote);
-        matchInner.add(Box.createVerticalStrut(6));
-        matchInner.add(viewBtn);
+
+        boolean favorite = Database.isFavoriteForSeeker(getUser().getEmail(), job.getId());
+        JButton favoriteBtn = new JButton();
+        favoriteBtn.setFocusable(false);
+        favoriteBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        favoriteBtn.setBorderPainted(false);
+        favoriteBtn.setContentAreaFilled(false);
+        favoriteBtn.setOpaque(false);
+        favoriteBtn.setMargin(new Insets(0, 0, 0, 0));
 
         GridBagConstraints mb = new GridBagConstraints();
         mb.gridx = 0;
@@ -455,8 +473,42 @@ public class JobSeekerJobsPage extends Page {
         mb.fill = GridBagConstraints.NONE;
         matchBox.add(matchInner, mb);
 
-        right.add(matchBox);
+        JPanel favoriteCard = new JPanel(new GridBagLayout());
+        favoriteCard.setBackground(Color.WHITE);
+        favoriteCard.setBorder(BorderFactory.createCompoundBorder(
+                new RoundedLineBorder(Color.decode("#d7dce3"), 12, 1),
+                BorderFactory.createEmptyBorder(8, 10, 8, 10)));
+        favoriteCard.setPreferredSize(new Dimension(56, 78));
+        favoriteCard.setMaximumSize(new Dimension(56, 78));
+        favoriteCard.add(favoriteBtn);
+        updateFavoriteCardVisual(favoriteBtn, favoriteCard, favorite);
+        favoriteBtn.addActionListener(e -> {
+            Database.toggleFavoriteForSeeker(getUser().getEmail(), job.getId());
+            boolean isFavorite = Database.isFavoriteForSeeker(getUser().getEmail(), job.getId());
+            updateFavoriteCardVisual(favoriteBtn, favoriteCard, isFavorite);
+        });
+
+        JPanel rightStack = new JPanel();
+        rightStack.setOpaque(false);
+        rightStack.setLayout(new BoxLayout(rightStack, BoxLayout.X_AXIS));
+        rightStack.setAlignmentX(Component.RIGHT_ALIGNMENT);
+        favoriteCard.setAlignmentX(Component.RIGHT_ALIGNMENT);
+        matchBox.setAlignmentX(Component.RIGHT_ALIGNMENT);
+        rightStack.add(matchBox);
+        rightStack.add(Box.createHorizontalStrut(8));
+        rightStack.add(favoriteCard);
+
+        GridBagConstraints rightConstraints = new GridBagConstraints();
+        rightConstraints.gridx = 0;
+        rightConstraints.gridy = 0;
+        rightConstraints.weightx = 1.0;
+        rightConstraints.weighty = 1.0;
+        rightConstraints.anchor = GridBagConstraints.EAST;
+        rightConstraints.fill = GridBagConstraints.NONE;
+        right.add(rightStack, rightConstraints);
         card.add(right, BorderLayout.EAST);
+
+        bindCardOpenAction(card, () -> getDashboard().showPage(new JobDetailsPage(getUser(), job)));
 
         return card;
     }
@@ -543,24 +595,72 @@ public class JobSeekerJobsPage extends Page {
     }
 
     private JPanel makeJobInfoRow(String iconName, String text) {
+        return makeJobInfoRow(iconName, text, new Font("Inter", Font.PLAIN, 12), Color.decode("#6b7280"));
+    }
+
+    private String formatFixedSalary(Job job) {
+        return "₱" + String.format("%,d", job.getSalary());
+    }
+
+    private void updateFavoriteIconButton(JButton button, boolean active) {
+        ImageIcon icon = loadIcon(active ? "bookmark-active.png" : "bookmark-off.png", 23, 23);
+        if (icon != null) {
+            button.setIcon(icon);
+            button.setText("");
+        } else {
+            button.setIcon(null);
+            button.setText(active ? "★" : "☆");
+            button.setForeground(Color.decode(active ? "#2563eb" : "#9ca3af"));
+            button.setFont(new Font("Inter", Font.BOLD, 16));
+        }
+    }
+
+    private void updateFavoriteCardVisual(JButton button, JPanel card, boolean active) {
+        updateFavoriteIconButton(button, active);
+        card.setBackground(active ? Color.decode("#e1efff") : Color.WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                new RoundedLineBorder(Color.decode(active ? "#bfdbfe" : "#d7dce3"), 12, 1),
+                BorderFactory.createEmptyBorder(8, 10, 8, 10)));
+    }
+
+    private JPanel makeJobInfoRow(String iconName, String text, Font labelFont, Color labelColor) {
         JPanel row = new JPanel(new GridBagLayout());
         row.setOpaque(false);
 
-        JLabel icon = new JLabel(loadIcon(iconName, 13, 13));
-        Dimension iconSize = new Dimension(14, 14);
-        icon.setPreferredSize(iconSize);
-        icon.setMinimumSize(iconSize);
-        icon.setMaximumSize(iconSize);
+        final int iconWidth = 14;
+        final int iconGap = 6;
+
+        if (iconName != null) {
+            JLabel icon = new JLabel(loadIcon(iconName, 13, 13));
+            Dimension iconSize = new Dimension(iconWidth, iconWidth);
+            icon.setPreferredSize(iconSize);
+            icon.setMinimumSize(iconSize);
+            icon.setMaximumSize(iconSize);
+
+            GridBagConstraints iconConstraints = new GridBagConstraints();
+            iconConstraints.gridx = 0;
+            iconConstraints.gridy = 0;
+            iconConstraints.anchor = GridBagConstraints.WEST;
+            iconConstraints.insets = new Insets(0, 0, 0, iconGap);
+            row.add(icon, iconConstraints);
+        } else {
+            JPanel spacer = new JPanel();
+            spacer.setOpaque(false);
+            Dimension spacerSize = new Dimension(iconWidth + iconGap, 1);
+            spacer.setPreferredSize(spacerSize);
+            spacer.setMinimumSize(spacerSize);
+            spacer.setMaximumSize(spacerSize);
+
+            GridBagConstraints spacerConstraints = new GridBagConstraints();
+            spacerConstraints.gridx = 0;
+            spacerConstraints.gridy = 0;
+            spacerConstraints.anchor = GridBagConstraints.WEST;
+            row.add(spacer, spacerConstraints);
+        }
 
         JLabel label = new JLabel(text);
-        label.setFont(new Font("Inter", Font.PLAIN, 12));
-        label.setForeground(Color.decode("#6b7280"));
-
-        GridBagConstraints iconConstraints = new GridBagConstraints();
-        iconConstraints.gridx = 0;
-        iconConstraints.gridy = 0;
-        iconConstraints.anchor = GridBagConstraints.WEST;
-        iconConstraints.insets = new Insets(0, 0, 0, 6);
+        label.setFont(labelFont);
+        label.setForeground(labelColor);
 
         GridBagConstraints labelConstraints = new GridBagConstraints();
         labelConstraints.gridx = 1;
@@ -568,13 +668,28 @@ public class JobSeekerJobsPage extends Page {
         labelConstraints.weightx = 1.0;
         labelConstraints.fill = GridBagConstraints.HORIZONTAL;
         labelConstraints.anchor = GridBagConstraints.WEST;
-
-        row.add(icon, iconConstraints);
         row.add(label, labelConstraints);
         return row;
     }
 
-    //all filter for jobs (job seek)
+    private void bindCardOpenAction(Component component, Runnable openAction) {
+        if (component instanceof AbstractButton) {
+            return;
+        }
+        component.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        component.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                openAction.run();
+            }
+        });
+        if (component instanceof Container) {
+            for (Component child : ((Container) component).getComponents()) {
+                bindCardOpenAction(child, openAction);
+            }
+        }
+    }
+
     private void showFilterPopup() {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Filter Jobs", true);
         JPanel groupsPanel = new JPanel();
@@ -588,7 +703,7 @@ public class JobSeekerJobsPage extends Page {
         addFilterGroup(groupsPanel, boxesByGroup, "Company Location",
                 PostJobPage.LOCATIONS.keySet().toArray(new String[0]));
         addFilterGroup(groupsPanel, boxesByGroup, "Required Skills", skillFilters);
-        addFilterGroup(groupsPanel, boxesByGroup, "Salary Range", salaryRanges);
+        addFilterGroup(groupsPanel, boxesByGroup, "Salary", salaryRanges);
         addFilterGroup(groupsPanel, boxesByGroup, "Experience Required", new String[]{"Yes", "No"});
         addFilterGroup(groupsPanel, boxesByGroup, "Job Type", new String[]{"Full-time", "Part-time", "Contract"});
         addFilterGroup(groupsPanel, boxesByGroup, "Workplace Type", new String[]{"On-site", "Remote Work", "Hybrid Work"});

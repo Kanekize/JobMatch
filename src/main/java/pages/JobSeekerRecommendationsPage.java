@@ -1,6 +1,7 @@
 package pages;
 
 import users.User;
+import models.SeekerProfile;
 import components.RoundedLineBorder;
 
 import javax.swing.*;
@@ -46,7 +47,11 @@ public class JobSeekerRecommendationsPage extends Page {
 
     public JobSeekerRecommendationsPage(User user) {
         super(user);
-        JButton updateBtn = new JButton("Update Assessment");
+        SeekerProfile profile = SeekerProfile.forUser(user);
+        String latestAssessmentDate = profile.getAssessmentDateText();
+        boolean hasAssessmentDate = !latestAssessmentDate.isBlank();
+
+        JButton updateBtn = new JButton(hasAssessmentDate ? "Update Assessment" : "Take Assessment");
         updateBtn.setIcon(loadIcon("update-assessment.png", 16, 16));
         updateBtn.setIconTextGap(8);
         updateBtn.setBackground(Color.WHITE);
@@ -73,7 +78,9 @@ public class JobSeekerRecommendationsPage extends Page {
         JLabel assessmentTitle = new JLabel("Based on latest assessment");
         assessmentTitle.setFont(new Font("Inter", Font.BOLD, 12));
         assessmentTitle.setForeground(Color.BLACK);
-        JLabel assessmentDate = new JLabel("Completed on Oct 01, 2026");
+        JLabel assessmentDate = new JLabel(hasAssessmentDate
+                ? "Completed on " + latestAssessmentDate
+                : "No assessment taken");
         assessmentDate.setFont(new Font("Inter", Font.PLAIN, 12));
         assessmentDate.setForeground(Color.decode("#374151"));
         assessmentText.add(assessmentTitle);
@@ -88,7 +95,7 @@ public class JobSeekerRecommendationsPage extends Page {
         addBlock(makeHeading("Recommended Industries",
                 "These industries align with your current skills, interests and career preferences.", assessmentBanner), 20);
 
-        // seperator 2 column
+
         JPanel grid = new JPanel(new GridLayout(0, 2, 20, 20));
         grid.setOpaque(false);
         grid.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -116,16 +123,11 @@ public class JobSeekerRecommendationsPage extends Page {
                 new RoundedLineBorder(Color.decode("#dfe7f1"), 10, 1),
                 BorderFactory.createEmptyBorder(16, 18, 15, 18)));
         card.setAlignmentX(Component.LEFT_ALIGNMENT);
-        card.setPreferredSize(new Dimension(320, 345));
-        card.setMinimumSize(new Dimension(320, 345));
-        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 345));
 
-        // Header row with a temporary icon placeholder and alignment badge.
+
         JPanel titleRow = new JPanel(new BorderLayout(12, 0));
         titleRow.setOpaque(false);
         titleRow.setAlignmentX(Component.LEFT_ALIGNMENT);
-        titleRow.setPreferredSize(new Dimension(0, 44));
-        titleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
         JPanel iconTile = new JPanel(new GridBagLayout());
         iconTile.setBackground(industryTileBackground(industry[0]));
         iconTile.setBorder(new RoundedLineBorder(industryTileBackground(industry[0]), 8, 1));
@@ -159,10 +161,10 @@ public class JobSeekerRecommendationsPage extends Page {
         alignment.setBorder(BorderFactory.createCompoundBorder(
                 new RoundedLineBorder(Color.decode(strong ? "#e7f7ef" : "#e1efff"), 8, 1),
                 BorderFactory.createEmptyBorder(4, 9, 4, 9)));
-        alignment.setPreferredSize(new Dimension(115, 24));
-        alignment.setMinimumSize(new Dimension(115, 24));
-        alignment.setMaximumSize(new Dimension(115, 24));
-        titleRow.add(alignment, BorderLayout.EAST);
+        JPanel alignmentWrap = new JPanel(new BorderLayout());
+        alignmentWrap.setOpaque(false);
+        alignmentWrap.add(alignment, BorderLayout.NORTH);
+        titleRow.add(alignmentWrap, BorderLayout.EAST);
         card.add(titleRow);
         card.add(Box.createVerticalStrut(3));
         card.add(separator());
@@ -173,7 +175,7 @@ public class JobSeekerRecommendationsPage extends Page {
         strengthsTitle.setForeground(Color.decode("#374151"));
         card.add(strengthsTitle);
         card.add(Box.createVerticalStrut(5));
-        JPanel chips = new JPanel(new FlowLayout(FlowLayout.LEFT, 7, 0));
+        JPanel chips = new JPanel(new FlowLayout(FlowLayout.LEFT, 7, 7));
         chips.setOpaque(false);
         chips.setAlignmentX(Component.LEFT_ALIGNMENT);
         for (String strength : industry[2].split(",\\s*")) {
