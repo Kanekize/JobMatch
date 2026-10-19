@@ -14,6 +14,8 @@ public class CompanyProfilePage extends Page {
     private String companyName;
     private String companyLogoPath;
     private String companyAbout;
+    private String businessRegNum;
+    private String companyPermitPath;
 
     public CompanyProfilePage(User user) {
         super(user);
@@ -25,9 +27,11 @@ public class CompanyProfilePage extends Page {
         loadProfile();
 
         addBlock(makeHeading("Company Profile",
-                "Manage your company branding and the logo used on new job posts.", null), 15);
+                "Manage your company branding, legal verification documentation, and platform details.", null), 15);
         addBlock(makeOverviewCard(), 15);
-        addBlock(makeBrandingCard(), 0);
+        addBlock(makeBrandingCard(), 15);
+
+        addBlock(makeLegalDocumentationCard(), 0);
 
         content.revalidate();
         content.repaint();
@@ -37,6 +41,8 @@ public class CompanyProfilePage extends Page {
         companyName = Database.getEmployerCompanyName(getUser().getEmail());
         companyLogoPath = Database.getEmployerCompanyLogoPath(getUser().getEmail());
         companyAbout = Database.getEmployerCompanyAbout(getUser().getEmail());
+        businessRegNum = Database.getEmployerBusinessRegNum(getUser().getEmail());
+        companyPermitPath = Database.getEmployerCompanyPermitPath(getUser().getEmail());
     }
 
     private JPanel makeOverviewCard() {
@@ -89,40 +95,112 @@ public class CompanyProfilePage extends Page {
 
         JButton editBtn = makeBlueButton("Edit Details");
         editBtn.addActionListener(e -> editDetails());
-        JButton logoBtn = makeWhiteButton(companyLogoPath == null || companyLogoPath.isBlank() ? "Upload Logo" : "Change Logo");
-        logoBtn.addActionListener(e -> changeLogo());
 
+        actions.add(Box.createVerticalGlue());
         actions.add(editBtn);
-        actions.add(Box.createVerticalStrut(10));
-        actions.add(logoBtn);
+        actions.add(Box.createVerticalGlue());
         card.add(actions, BorderLayout.EAST);
 
         return card;
     }
 
     private JPanel makeBrandingCard() {
-        JPanel card = new JPanel();
-        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+        JPanel card = new JPanel(new BorderLayout(20, 0));
         card.setBackground(Color.WHITE);
         card.setBorder(BorderFactory.createCompoundBorder(
                 new RoundedLineBorder(Color.decode("#d7dce3"), 12, 1),
                 BorderFactory.createEmptyBorder(16, 18, 16, 18)));
 
+        JPanel textSide = new JPanel();
+        textSide.setLayout(new BoxLayout(textSide, BoxLayout.Y_AXIS));
+        textSide.setOpaque(false);
+
         JLabel title = new JLabel("Branding");
         title.setFont(new Font("Inter", Font.BOLD, 15));
         title.setForeground(Color.decode("#0d0d0d"));
         title.setAlignmentX(Component.LEFT_ALIGNMENT);
-        card.add(title);
-        card.add(Box.createVerticalStrut(8));
+        textSide.add(title);
+        textSide.add(Box.createVerticalStrut(8));
 
         JLabel note = new JLabel("This logo is used automatically on new job posts.");
         note.setFont(new Font("Inter", Font.PLAIN, 13));
         note.setForeground(Color.decode("#6b7280"));
         note.setAlignmentX(Component.LEFT_ALIGNMENT);
-        card.add(note);
+        textSide.add(note);
 
-        card.add(Box.createVerticalStrut(12));
-        card.add(makeLogoPreview(84));
+        textSide.add(Box.createVerticalStrut(12));
+        textSide.add(makeLogoPreview(84));
+        card.add(textSide, BorderLayout.CENTER);
+
+        JPanel actionSide = new JPanel(new GridBagLayout());
+        actionSide.setOpaque(false);
+        JButton logoBtn = makeWhiteButton(companyLogoPath == null || companyLogoPath.isBlank() ? "Upload Logo" : "Change Logo");
+        logoBtn.addActionListener(e -> changeLogo());
+        actionSide.add(logoBtn);
+        card.add(actionSide, BorderLayout.EAST);
+
+        return card;
+    }
+
+    private JPanel makeLegalDocumentationCard() {
+        JPanel card = new JPanel(new BorderLayout(20, 0));
+        card.setBackground(Color.WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                new RoundedLineBorder(Color.decode("#d7dce3"), 12, 1),
+                BorderFactory.createEmptyBorder(16, 18, 16, 18)));
+
+        JPanel textSide = new JPanel();
+        textSide.setLayout(new BoxLayout(textSide, BoxLayout.Y_AXIS));
+        textSide.setOpaque(false);
+
+        JLabel title = new JLabel("Legal Documentation");
+        title.setFont(new Font("Inter", Font.BOLD, 15));
+        title.setForeground(Color.decode("#0d0d0d"));
+        title.setAlignmentX(Component.LEFT_ALIGNMENT);
+        textSide.add(title);
+        textSide.add(Box.createVerticalStrut(8));
+
+        JLabel regLabel = new JLabel("Verification Credentials: " + (businessRegNum.isBlank() ? "Not Verified" : businessRegNum));
+        regLabel.setFont(new Font("Inter", Font.PLAIN, 13));
+        regLabel.setForeground(Color.decode("#374151"));
+        regLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        textSide.add(regLabel);
+        textSide.add(Box.createVerticalStrut(12));
+
+        JLabel note = new JLabel("Official Business Permit Document:");
+        note.setFont(new Font("Inter", Font.BOLD, 13));
+        note.setForeground(Color.decode("#0d0d0d"));
+        note.setAlignmentX(Component.LEFT_ALIGNMENT);
+        textSide.add(note);
+        textSide.add(Box.createVerticalStrut(8));
+
+        JPanel previewBox = new JPanel(new BorderLayout());
+        previewBox.setPreferredSize(new Dimension(150, 100));
+        previewBox.setMaximumSize(new Dimension(150, 100));
+        previewBox.setBackground(Color.decode("#f1f5fd"));
+        previewBox.setBorder(BorderFactory.createLineBorder(Color.decode("#d7dce3"), 1));
+        previewBox.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        if (companyPermitPath != null && !companyPermitPath.isBlank() && new File(companyPermitPath).exists()) {
+            ImageIcon icon = new ImageIcon(companyPermitPath);
+            Image scaled = icon.getImage().getScaledInstance(150, 100, Image.SCALE_SMOOTH);
+            previewBox.add(new JLabel(new ImageIcon(scaled)), BorderLayout.CENTER);
+        } else {
+            JLabel emptyLabel = new JLabel("No Permit Image", SwingConstants.CENTER);
+            emptyLabel.setFont(new Font("Inter", Font.PLAIN, 11));
+            emptyLabel.setForeground(Color.decode("#6b7280"));
+            previewBox.add(emptyLabel, BorderLayout.CENTER);
+        }
+        textSide.add(previewBox);
+        card.add(textSide, BorderLayout.CENTER);
+
+        JPanel actionSide = new JPanel(new GridBagLayout());
+        actionSide.setOpaque(false);
+        JButton permitBtn = makeWhiteButton(companyPermitPath == null || companyPermitPath.isBlank() ? "Upload Permit" : "Change Permit");
+        permitBtn.addActionListener(e -> changePermit());
+        actionSide.add(permitBtn);
+        card.add(actionSide, BorderLayout.EAST);
+
         return card;
     }
 
@@ -143,24 +221,20 @@ public class CompanyProfilePage extends Page {
             box.add(new JLabel(new ImageIcon(scaled)), BorderLayout.CENTER);
         } else {
             String labelText = companyName == null || companyName.isBlank()
-                    ? "C"
-                    : companyName.substring(0, 1).toUpperCase();
+                    ? "C" : companyName.substring(0, 1).toUpperCase();
             JLabel label = new JLabel(labelText, SwingConstants.CENTER);
             label.setFont(new Font("Inter", Font.BOLD, size / 2));
             label.setForeground(Color.decode("#12376b"));
             box.add(label, BorderLayout.CENTER);
         }
-
         wrap.add(box);
         return wrap;
     }
-
     private void editDetails() {
         JTextField companyField = new JTextField(companyName == null ? "" : companyName, 28);
         JTextArea aboutField = new JTextArea(companyAbout == null ? "" : companyAbout, 6, 28);
         aboutField.setLineWrap(true);
         aboutField.setWrapStyleWord(true);
-
         if (showForm("Edit Company Profile", "Company Name", companyField,
                 "About the Company", new JScrollPane(aboutField))) {
             String newName = companyField.getText().trim();
@@ -170,11 +244,10 @@ public class CompanyProfilePage extends Page {
             }
             companyName = newName;
             companyAbout = aboutField.getText().trim();
-            Database.updateEmployerProfile(getUser().getEmail(), companyName, companyLogoPath, companyAbout);
+            Database.updateEmployerProfile(getUser().getEmail(), companyName, companyLogoPath, companyAbout, companyPermitPath, businessRegNum);
             build();
         }
     }
-
     private void changeLogo() {
         JFileChooser chooser = new JFileChooser();
         chooser.setDialogTitle("Choose company logo");
@@ -182,7 +255,19 @@ public class CompanyProfilePage extends Page {
         if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             File file = chooser.getSelectedFile();
             companyLogoPath = file.getAbsolutePath();
-            Database.updateEmployerProfile(getUser().getEmail(), companyName, companyLogoPath, companyAbout);
+            Database.updateEmployerProfile(getUser().getEmail(), companyName, companyLogoPath, companyAbout, companyPermitPath, businessRegNum);
+            build();
+        }
+    }
+
+    private void changePermit() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Choose Business Permit Image");
+        chooser.setFileFilter(new FileNameExtensionFilter("Image files", "jpg", "jpeg", "png"));
+        if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            File file = chooser.getSelectedFile();
+            companyPermitPath = file.getAbsolutePath();
+            Database.updateEmployerProfile(getUser().getEmail(), companyName, companyLogoPath, companyAbout, companyPermitPath, businessRegNum);
             build();
         }
     }
@@ -216,7 +301,6 @@ public class CompanyProfilePage extends Page {
     private boolean showForm(String title, Object... labelsAndFields) {
         JPanel form = new JPanel();
         form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
-
         for (int i = 0; i < labelsAndFields.length; i += 2) {
             JLabel label = new JLabel((String) labelsAndFields[i]);
             label.setFont(new Font("Inter", Font.BOLD, 12));
@@ -228,7 +312,6 @@ public class CompanyProfilePage extends Page {
             form.add(field);
             form.add(Box.createVerticalStrut(10));
         }
-
         return JOptionPane.showConfirmDialog(this, form, title,
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) == JOptionPane.OK_OPTION;
     }

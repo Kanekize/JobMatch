@@ -9,6 +9,7 @@ import javax.swing.*;
 import javax.swing.border.Border;
 import java.awt.*;
 import java.awt.event.*;
+import java.io.File;
 
 import javax.swing.JTextPane;
 import javax.swing.text.StyledDocument;
@@ -23,9 +24,13 @@ public class Frame extends JFrame implements ActionListener, KeyListener {
     JPanel invinciblePanel, jobSeekerPanel, hiringPanel, registerPanel, loginPanel, forgotPanel;
     JTextPane jobSeekerDesc, hiringDesc;
 
-    JTextField emailInputLogin, firstNameInput, lastNameInput, emailInputRegister, forgetNameInput, companyInput;
+    JTextField emailInputLogin, firstNameInput, lastNameInput, emailInputRegister, forgetNameInput, companyInput, businessRegInput;
     RoundedPasswordField passwordInputLogin, passwordInputRegister, confirmInputRegister, forgetPassInput;
     JCheckBox rememberCheck, termsCheck;
+
+    JComboBox<String> regTypeBox;
+    private File uploadedPermitFile;
+    private JLabel permitFileLabel;
 
     JLabel jobSeekerTitle, hiringTitle, userLabel, passLabel;
     int topY = 40, labelHeight;
@@ -335,7 +340,7 @@ public class Frame extends JFrame implements ActionListener, KeyListener {
     }
 
     private static class PlaceholderField extends JTextField {
-        private final String placeholder;
+        public String placeholder;
         PlaceholderField(String placeholder) {
             this.placeholder = placeholder;
             setBackground(Color.WHITE);
@@ -733,7 +738,7 @@ public class Frame extends JFrame implements ActionListener, KeyListener {
         int formX = (rightWidth - formWidth) / 2;
         int extra = 0;
         if (accountType.equals("Employer")) {
-            extra = 72;
+            extra = 296;
         }
         int iconShift = 84;
         int titleShift = 68 + iconShift;
@@ -810,6 +815,103 @@ public class Frame extends JFrame implements ActionListener, KeyListener {
             companyInput.setBounds(formX, formY + titleShift + 202, formWidth, 38);
             companyInput.setBorder(inputBorder());
             rightPanel.add(companyInput);
+
+            JLabel regTypeLabel = new JLabel("Registration Type");
+            regTypeLabel.setFont(new Font("Inter", Font.BOLD, 14));
+            regTypeLabel.setForeground(Color.decode("#3f3f46"));
+            regTypeLabel.setBounds(formX, formY + titleShift + 254, formWidth, 18);
+            rightPanel.add(regTypeLabel);
+
+            regTypeBox = new JComboBox<>(new String[]{"DTI", "SEC", "BIR TIN"});
+            regTypeBox.setFont(new Font("Inter", Font.PLAIN, 15));
+            regTypeBox.setBackground(Color.WHITE);
+            regTypeBox.setBounds(formX, formY + titleShift + 274, formWidth, 38);
+            rightPanel.add(regTypeBox);
+
+            JLabel businessRegLabel = new JLabel("Business Registration Number");
+            businessRegLabel.setFont(new Font("Inter", Font.BOLD, 14));
+            businessRegLabel.setForeground(Color.decode("#3f3f46"));
+            businessRegLabel.setBounds(formX, formY + titleShift + 326, formWidth, 18);
+            rightPanel.add(businessRegLabel);
+
+            businessRegInput = new PlaceholderField("Enter 7-8 digit DTI number");
+            businessRegInput.setFont(new Font("Inter", Font.PLAIN, 16));
+            businessRegInput.setBounds(formX, formY + titleShift + 346, formWidth, 38);
+            businessRegInput.setBorder(inputBorder());
+            rightPanel.add(businessRegInput);
+
+            regTypeBox.addActionListener(evt -> {
+                String selectedType = (String) regTypeBox.getSelectedItem();
+                businessRegInput.setText("");
+
+                if (selectedType.equals("DTI")) {
+                    ((PlaceholderField) businessRegInput).placeholder = "e.g., 12345678 or 7-8 digits";
+                } else if (selectedType.equals("SEC")) {
+                    ((PlaceholderField) businessRegInput).placeholder = "e.g., CS201012345 or 12-digit code";
+                } else if (selectedType.equals("BIR TIN")) {
+                    ((PlaceholderField) businessRegInput).placeholder = "e.g., 123-456-789-000 or 12-digit code with dashes";
+                }
+
+                businessRegInput.repaint();
+            });
+
+            businessRegInput.addKeyListener(new KeyAdapter() {
+                @Override
+                public void keyTyped(KeyEvent e) {
+                    char c = e.getKeyChar();
+                    String currentText = businessRegInput.getText();
+                    String selectedType = (String) regTypeBox.getSelectedItem();
+
+                    // numbers only and 8 max
+                    if (selectedType.equals("DTI")) {
+                        if (!Character.isDigit(c) || currentText.length() >= 8) {
+                            e.consume(); // Rejects the character completely
+                        }
+                    }
+                    else if (selectedType.equals("SEC")) {
+                        // letts, numbers, dash max = 15
+                        boolean isAlphanumeric = Character.isLetterOrDigit(c);
+                        boolean isHyphen = (c == '-');
+                        if ((!isAlphanumeric && !isHyphen) || currentText.length() >= 15) {
+                            e.consume();
+                        }
+                    }
+                    else if (selectedType.equals("BIR TIN")) {
+                        // numbers and dash max =12
+                        if ((!Character.isDigit(c) && c != '-') || currentText.length() >= 15) {
+                            e.consume();
+                        }
+                    }
+                }
+            });
+
+            JLabel permitLabel = new JLabel("Official Business Permit Image (Required)");
+            permitLabel.setFont(new Font("Inter", Font.BOLD, 14));
+            permitLabel.setForeground(Color.decode("#3f3f46"));
+            permitLabel.setBounds(formX, formY + titleShift + 398, formWidth, 18);
+            rightPanel.add(permitLabel);
+
+            JButton uploadPermitBtn = new JButton("Select Permit Image");
+            uploadPermitBtn.setFont(new Font("Inter", Font.PLAIN, 14));
+            uploadPermitBtn.setBounds(formX, formY + titleShift + 418, 180, 38);
+            rightPanel.add(uploadPermitBtn);
+
+            permitFileLabel = new JLabel("No file uploaded yet");
+            permitFileLabel.setFont(new Font("Inter", Font.PLAIN, 13));
+            permitFileLabel.setForeground(Color.decode("#6b7280"));
+            permitFileLabel.setBounds(formX + 195, formY + titleShift + 426, formWidth - 195, 20);
+            rightPanel.add(permitFileLabel);
+
+            uploadPermitBtn.addActionListener(evt -> {
+                JFileChooser chooser = new JFileChooser();
+                chooser.setDialogTitle("Upload Business Permit Image");
+                chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Image Files", "jpg", "jpeg", "png"));
+                if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+                    uploadedPermitFile = chooser.getSelectedFile();
+                    permitFileLabel.setText("📄 " + uploadedPermitFile.getName());
+                    permitFileLabel.setForeground(Color.decode("#16a34a"));
+                }
+            });
         }
 
         JLabel emailLabel = new JLabel("Email address");
@@ -1020,7 +1122,7 @@ public class Frame extends JFrame implements ActionListener, KeyListener {
         String firstName = firstNameInput.getText().trim();
         String lastName = lastNameInput.getText().trim();
         String email = emailInputRegister.getText().trim();
-        String emailPattern = "^[A-Za-z0-9._%+-]+@(tip\\.edu\\.ph|gmail\\.com)$";
+        String emailPattern = "^[A-Za-z0-9._%+-]+@(tip\\.edu\\.ph|gmail\\.com|yahoo\\.com)$";
         String password = new String(passwordInputRegister.getPassword());
         String confirm = new String(confirmInputRegister.getPassword());
 
@@ -1029,15 +1131,45 @@ public class Frame extends JFrame implements ActionListener, KeyListener {
             return;
         }
 
-
         String companyName = "";
+        String regNum = "";
+        String regType = "";
+        String permitPath = "";
         if (accountType.equals("Employer")) {
             companyName = companyInput.getText().trim();
-            if (companyName.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Please enter your company name.", "Create Account", JOptionPane.WARNING_MESSAGE);
+            regType = (String) regTypeBox.getSelectedItem();
+            regNum = businessRegInput.getText().trim();
+
+            if (companyName.isEmpty() || regNum.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Please fill in all company information fields.", "Create Account", JOptionPane.WARNING_MESSAGE);
                 return;
             }
+
+            if (uploadedPermitFile == null || !uploadedPermitFile.exists()) {
+                JOptionPane.showMessageDialog(this, "Please upload your official business permit image to proceed.", "Validation Error", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            permitPath = uploadedPermitFile.getAbsolutePath();
+
+            if (regType.equals("DTI")) {
+                if (!regNum.matches("^\\d{7,8}$")) {
+                    JOptionPane.showMessageDialog(this, "Invalid DTI Format! Must be a 7 to 8 digit number only.", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+            } else if (regType.equals("SEC")) {
+                if (!regNum.matches("^[A-Za-z0-9\\-]{7,15}$")) {
+                    JOptionPane.showMessageDialog(this, "Invalid SEC Format! Must be alphanumeric (7-15 characters).", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+            } else if (regType.equals("BIR TIN")) {
+                String cleanTin = regNum.replace("-", "");
+                if (!cleanTin.matches("^\\d{12}$")) {
+                    JOptionPane.showMessageDialog(this, "Invalid BIR TIN Format! Must contain exactly 12 numeric digits.", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+            }
         }
+
         if (!email.matches(emailPattern)) {
             JOptionPane.showMessageDialog(this, "Please enter a valid email address.", "Create Account", JOptionPane.WARNING_MESSAGE);
             return;
@@ -1059,9 +1191,15 @@ public class Frame extends JFrame implements ActionListener, KeyListener {
             return;
         }
 
-        if (Database.registerUser(firstName, lastName, email, password, accountType, companyName)) {
+        String compiledRegData = "";
+        if (accountType.equals("Employer")) {
+            compiledRegData = regType + ": " + regNum;
+        }
+
+        if (Database.registerUser(firstName, lastName, email, password, accountType, companyName, compiledRegData, permitPath)) {
             JOptionPane.showMessageDialog(this, "Account created! You can now sign in.", "Create Account", JOptionPane.INFORMATION_MESSAGE);
             centerWrapper.remove(registerPanel);
+            uploadedPermitFile = null;
             Login();
         } else {
             JOptionPane.showMessageDialog(this, "Something went wrong while creating your account.", "Create Account", JOptionPane.ERROR_MESSAGE);

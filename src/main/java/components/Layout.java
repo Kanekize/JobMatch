@@ -194,11 +194,54 @@ public class Layout implements ActionListener, FocusListener {
         searchField.addFocusListener(this);
         searchField.addActionListener(e -> {
             String query = searchField.getText().trim();
-            if (!query.isEmpty() && !query.equals(searchHint)) {
-                if (dashboard instanceof dashboards.JobSeekerDashboard) {
-                    dashboard.showPage(new pages.JobSeekerJobsPage(user, null));
-                } else if (dashboard instanceof dashboards.EmployerDashboard) {
-                    dashboard.onMenuClick("Jobs");
+            if (query.equals(searchHint)) {
+                query = "";
+            }
+            
+            if (contentPanel.getComponentCount() > 0) {
+                Component activePage = contentPanel.getComponent(0);
+
+                // active page = jobseeker jobs
+                if (activePage instanceof pages.JobSeekerJobsPage) {
+                    pages.JobSeekerJobsPage seekerJobsPage = (pages.JobSeekerJobsPage) activePage;
+
+                    try {
+                        java.lang.reflect.Field field = pages.JobSeekerJobsPage.class.getDeclaredField("searchField");
+                        field.setAccessible(true);
+                        JTextField pageSearchField = (JTextField) field.get(seekerJobsPage);
+
+                        // kung ano sinearch sa taas lalabas na rin sa search bar sa loob fixed
+                        pageSearchField.setText(query);
+                        pageSearchField.setForeground(Color.decode("#0d0d0d"));
+                    } catch (Exception ex) {
+                        System.err.println("Search binding failed: " + ex.getMessage());
+                    }
+                }
+
+                // active page = employer jobs
+                else if (activePage instanceof pages.EmployerJobsPage) {
+                    pages.EmployerJobsPage employerJobsPage = (pages.EmployerJobsPage) activePage;
+
+                    try {
+                        java.lang.reflect.Field field = pages.EmployerJobsPage.class.getDeclaredField("searchField");
+                        field.setAccessible(true);
+                        JTextField pageSearchField = (JTextField) field.get(employerJobsPage);
+
+                        pageSearchField.setText(query);
+                    } catch (Exception ex) {
+                        System.err.println("Search binding failed: " + ex.getMessage());
+                    }
+                }
+
+                // pag nag search sa different page blue box indicator sa sidebar menu fixed
+                else {
+                    if (dashboard instanceof dashboards.JobSeekerDashboard) {
+                        dashboard.showPage(new pages.JobSeekerJobsPage(user, null));
+                        SwingUtilities.invokeLater(() -> searchField.postActionEvent());
+                    } else if (dashboard instanceof dashboards.EmployerDashboard) {
+                        dashboard.onMenuClick("Jobs");
+                        SwingUtilities.invokeLater(() -> searchField.postActionEvent());
+                    }
                 }
             }
         });

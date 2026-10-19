@@ -48,6 +48,8 @@ public class Database {
                 "company_name TEXT, " +
                 "company_logo_path TEXT, " +
                 "company_about TEXT, " +
+                "company_permit_path TEXT, " +
+                "business_reg_num, " +
                 "created_at TEXT DEFAULT CURRENT_TIMESTAMP)";
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
@@ -61,6 +63,12 @@ public class Database {
         } catch (SQLException e) {}
         try (Statement stmt = conn.createStatement()) {
             stmt.execute("ALTER TABLE users ADD COLUMN company_about TEXT");
+        } catch (SQLException e) {}
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("ALTER TABLE users ADD COLUMN company_permit_path TEXT");
+        } catch (SQLException e) {}
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("ALTER TABLE users ADD COLUMN business_reg_num TEXT");
         } catch (SQLException e) {}
 
         String rememberSql = "CREATE TABLE IF NOT EXISTS remembered (" +
@@ -203,8 +211,8 @@ public class Database {
         }
     }
 
-    public static boolean registerUser(String firstName, String lastName, String email, String password, String role, String companyName) {
-        String sql = "INSERT INTO users (first_name, last_name, email, password, role, company_name) VALUES (?, ?, ?, ?, ?, ?)";
+    public static boolean registerUser(String firstName, String lastName, String email, String password, String role, String companyName, String regNum, String permitPath) {
+        String sql = "INSERT INTO users (first_name, last_name, email, password, role, company_name, business_reg_num, company_permit_path, company_logo_path, company_about) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', '')";
 
         try (Connection conn = DriverManager.getConnection(DB_URL);
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -214,10 +222,12 @@ public class Database {
             ps.setString(4, password);
             ps.setString(5, role);
             ps.setString(6, companyName);
+            ps.setString(7, regNum);
+            ps.setString(8, permitPath);
             ps.executeUpdate();
             return true;
         } catch (SQLException e) {
-            System.err.println("DB error: " + e.getMessage());
+            System.err.println("DB error during extended registration: " + e.getMessage());
             return false;
         }
     }
@@ -480,17 +490,19 @@ public class Database {
         return "";
     }
 
-    public static void updateEmployerProfile(String employerEmail, String companyName, String companyLogoPath, String companyAbout) {
-        String sql = "UPDATE users SET company_name = ?, company_logo_path = ?, company_about = ? WHERE email = ? AND role = 'Employer'";
+    public static void updateEmployerProfile(String employerEmail, String companyName, String companyLogoPath, String companyAbout, String permitPath, String regNum) {
+        String sql = "UPDATE users SET company_name = ?, company_logo_path = ?, company_about = ?, company_permit_path = ?, business_reg_num = ? WHERE email = ? AND role = 'Employer'";
         try (Connection conn = DriverManager.getConnection(DB_URL);
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, companyName);
             ps.setString(2, companyLogoPath);
             ps.setString(3, companyAbout);
-            ps.setString(4, employerEmail.toLowerCase());
+            ps.setString(4, permitPath);
+            ps.setString(5, regNum);
+            ps.setString(6, employerEmail.toLowerCase());
             ps.executeUpdate();
         } catch (SQLException e) {
-            System.err.println("DB error: " + e.getMessage());
+            System.err.println("DB error updating extended employer profile: " + e.getMessage());
         }
     }
 
@@ -1068,6 +1080,41 @@ public class Database {
             System.err.println("DB Error retrieving rating voters list: " + e.getMessage());
         }
         return voters;
+    }
+
+    //employer legal documentation
+    public static String getEmployerBusinessRegNum(String employerEmail) {
+        String sql = "SELECT business_reg_num FROM users WHERE email = ? AND role = 'Employer'";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, employerEmail.toLowerCase());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String reg = rs.getString("business_reg_num");
+                    return reg == null ? "" : reg;
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("DB error reading registration number: " + e.getMessage());
+        }
+        return "";
+    }
+
+    public static String getEmployerCompanyPermitPath(String employerEmail) {
+        String sql = "SELECT company_permit_path FROM users WHERE email = ? AND role = 'Employer'";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, employerEmail.toLowerCase());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String permit = rs.getString("company_permit_path");
+                    return permit == null ? "" : permit;
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("DB error reading permit path: " + e.getMessage());
+        }
+        return "";
     }
 
 

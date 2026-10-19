@@ -31,6 +31,7 @@ public class SeekerProfile {
     private String workPeriod = "";
     private List<String> workDetails = new ArrayList<>();
 
+    private String certificateAttachedImages = "";
     private List<String> certifications = new ArrayList<>();
 
     // job preference
@@ -89,6 +90,7 @@ public class SeekerProfile {
                 jProfile.about = dataRow[5] == null ? "" : dataRow[5];
 
                 jProfile.certifications = toList(Database.getProfileDetails(jProfile.email).get("certifications"));
+                jProfile.certificateAttachedImages = Database.getProfileDetails(jProfile.email).getOrDefault("cert_paths", "");
                 jProfile.preferredRoles = Database.getProfileDetails(jProfile.email).getOrDefault("preferredRoles", "");
                 jProfile.preferredIndustry = Database.getProfileDetails(jProfile.email).getOrDefault("preferredIndustry", "");
                 jProfile.preferredArrangement = Database.getProfileDetails(jProfile.email).getOrDefault("preferredArrangement", "");
@@ -121,6 +123,7 @@ public class SeekerProfile {
 
         java.util.Map<String, String> backupDetails = new java.util.LinkedHashMap<>();
         backupDetails.put("certifications", String.join("\n", certifications));
+        backupDetails.put("cert_paths", certificateAttachedImages);
         backupDetails.put("preferredRoles", preferredRoles);
         backupDetails.put("preferredIndustry", preferredIndustry);
         backupDetails.put("preferredArrangement", preferredArrangement);
@@ -148,6 +151,7 @@ public class SeekerProfile {
         for (String certificate : value(answers, "qualifications").split("[,;\\n]")) {
             addIfMissing(certifications, certificate.trim());
         }
+        this.certificateAttachedImages = value(answers, "cert_paths");
 
         String roles = value(answers, "jobRoles");
         String position = value(answers, "desiredPosition");
