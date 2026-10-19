@@ -57,11 +57,58 @@ public class JobDetailsPage extends Page {
         dateLabel.setForeground(Color.decode("#6b7280"));
         dateLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
+        JPanel interactiveStarsRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 4));
+        interactiveStarsRow.setOpaque(false);
+        interactiveStarsRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel[] starButtons = new JLabel[5];
+        int currentRating = Database.getIndividualJobRating(job.getId(), user.getEmail());
+
+        java.io.File starImgFile = new java.io.File("src/images/star.png");
+        if (!starImgFile.exists()) starImgFile = new java.io.File("JobMatch/src/images/star.png");
+        for (int i = 0; i < 5; i++) {
+            final int indexPosition = i + 1;
+            starButtons[i] = new JLabel();
+            starButtons[i].setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+            if (starImgFile.exists()) {
+                Image nativeImg = new ImageIcon(starImgFile.getPath()).getImage();
+                Image scaledImg = nativeImg.getScaledInstance(24, 24, Image.SCALE_SMOOTH);
+                ImageIcon activeStarIcon = new ImageIcon(scaledImg);
+                starButtons[i].setIcon(activeStarIcon);
+                starButtons[i].setEnabled(indexPosition <= currentRating);
+            } else {
+                starButtons[i].setText((indexPosition <= currentRating) ? "★" : "☆");
+                starButtons[i].setFont(new Font("Inter", Font.BOLD, 22));
+                starButtons[i].setForeground(Color.decode("#f59e0b"));
+            }
+            java.io.File finalStarImgFile = starImgFile;
+            starButtons[i].addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    if (Database.saveJobRating(job.getId(), user.getEmail(), indexPosition)) {
+                        int activeSelectionScore = Database.getIndividualJobRating(job.getId(), user.getEmail());
+                        for (int k = 0; k < 5; k++) {
+                            if (finalStarImgFile.exists()) {
+                                starButtons[k].setEnabled(k < activeSelectionScore);
+                            } else {
+                                starButtons[k].setText((k < activeSelectionScore) ? "★" : "☆");
+                            }
+                        }
+                        JOptionPane.showMessageDialog(null, "Thank you! You rated this job position " + indexPosition + " stars.", "Rating Submitted", JOptionPane.INFORMATION_MESSAGE);
+                    }
+                }
+            });
+            interactiveStarsRow.add(starButtons[i]);
+        }
+
         info.add(titleLabel);
-        info.add(Box.createVerticalStrut(6));
+        info.add(Box.createVerticalStrut(4));
         info.add(infoLabel);
         info.add(Box.createVerticalStrut(4));
         info.add(dateLabel);
+        info.add(Box.createVerticalStrut(4));
+        info.add(interactiveStarsRow);
         header.add(info, BorderLayout.CENTER);
 
         JButton applyBtn = new JButton("Apply Now");
@@ -105,6 +152,7 @@ public class JobDetailsPage extends Page {
 
         addBlock(makeSection("Who Can Apply", String.join(", ", job.getApplicantTypes())), 0);
     }
+
 
     private JPanel makeSection(String title, String text) {
         JPanel panel = new JPanel();

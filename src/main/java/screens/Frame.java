@@ -78,6 +78,8 @@ public class Frame extends JFrame implements ActionListener, KeyListener {
     }
 
     public Frame() {
+        UIManager.put("Button.focus", new javax.swing.plaf.ColorUIResource(new Color(0, 0, 0, 0)));
+        UIManager.put("Button.dashedFocus", Boolean.FALSE);
         this.setUndecorated(true);
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         this.setExtendedState(JFrame.MAXIMIZED_BOTH);
@@ -92,6 +94,8 @@ public class Frame extends JFrame implements ActionListener, KeyListener {
         centerWrapper = new JPanel(new GridBagLayout());
         centerWrapper.setBackground(Color.decode("#F7FAFD"));
         GridBagConstraints grid = new GridBagConstraints();
+        grid.weighty = 1.0;
+        grid.fill = GridBagConstraints.VERTICAL;
 
         invinciblePanel = new JPanel();
         invinciblePanel.setLayout(null);
@@ -112,16 +116,13 @@ public class Frame extends JFrame implements ActionListener, KeyListener {
         welcomeMsg2.setBounds(0, topY + 60, canvasWidth, 30);
         invinciblePanel.add(welcomeMsg2);
 
-
-
-
         userChoice();
 
         grid.gridx = 0;
         grid.gridy = 0;
         grid.anchor = GridBagConstraints.CENTER;
         centerWrapper.add(invinciblePanel, grid);
-        this.add(centerWrapper, BorderLayout.CENTER);
+        this.getContentPane().add(centerWrapper, BorderLayout.CENTER);
     }
 
     private JLabel seekerIcon, employerIcon, seekerCheck, employerCheck;
@@ -308,6 +309,9 @@ public class Frame extends JFrame implements ActionListener, KeyListener {
     }
 
     private void selectAccountType(String role) {
+        if (openSavedAccount(role)) {
+            return;
+        }
         accountType = role;
         boolean seekerSelected = role.equals("Job Seeker");
         jobSeekerPanel.setBackground(seekerSelected ? Color.decode("#F0F5FF") : Color.WHITE);
@@ -544,7 +548,11 @@ public class Frame extends JFrame implements ActionListener, KeyListener {
         loginPanel = new JPanel();
         loginPanel.setLayout(null);
         loginPanel.setBackground(Color.decode("#F7FAFD"));
-        fixSize(loginPanel);
+
+        Dimension fullScreenSize = new Dimension(authWidth, authHeight);
+        loginPanel.setPreferredSize(fullScreenSize);
+        loginPanel.setMinimumSize(fullScreenSize);
+        loginPanel.setMaximumSize(fullScreenSize);
 
         int leftWidth = canvasWidth * 40 / 100;
         int rightWidth = canvasWidth - leftWidth;
@@ -552,7 +560,7 @@ public class Frame extends JFrame implements ActionListener, KeyListener {
         JPanel leftPanel = new JPanel();
         leftPanel.setLayout(null);
         leftPanel.setBackground(Color.decode("#103358"));
-        leftPanel.setBounds(0, 0, leftWidth, canvasHeight);
+        leftPanel.setBounds(0, 0, leftWidth, authHeight);
         addSidebarLogo(leftPanel);
 
 
@@ -562,7 +570,7 @@ public class Frame extends JFrame implements ActionListener, KeyListener {
         JPanel rightPanel = new JPanel();
         rightPanel.setLayout(null);
         rightPanel.setBackground(Color.decode("#F7FAFD"));
-        rightPanel.setBounds(leftWidth, 0, rightWidth, canvasHeight);
+        rightPanel.setBounds(leftWidth, 0, rightWidth, authHeight);
 
         closeLoginBtn = new JButton("X");
         closeLoginBtn.setFont(new Font("Inter", Font.BOLD, 24));
@@ -664,6 +672,9 @@ public class Frame extends JFrame implements ActionListener, KeyListener {
 
         grid.gridx = 0;
         grid.gridy = 0;
+        grid.weightx = 1.0;
+        grid.weighty = 1.0;
+        grid.fill = GridBagConstraints.BOTH;
         grid.anchor = GridBagConstraints.CENTER;
         centerWrapper.add(loginPanel, grid);
 
@@ -680,7 +691,11 @@ public class Frame extends JFrame implements ActionListener, KeyListener {
         registerPanel = new JPanel();
         registerPanel.setLayout(null);
         registerPanel.setBackground(Color.decode("#F7FAFD"));
-        fixSize(registerPanel);
+
+        Dimension fullScreenSize = new Dimension(authWidth, authHeight);
+        registerPanel.setPreferredSize(fullScreenSize);
+        registerPanel.setMinimumSize(fullScreenSize);
+        registerPanel.setMaximumSize(fullScreenSize);
 
         int leftWidth = canvasWidth * 40 / 100;
         int rightWidth = canvasWidth - leftWidth;
@@ -688,7 +703,7 @@ public class Frame extends JFrame implements ActionListener, KeyListener {
         JPanel leftPanel = new JPanel();
         leftPanel.setLayout(null);
         leftPanel.setBackground(Color.decode("#103358"));
-        leftPanel.setBounds(0, 0, leftWidth, canvasHeight);
+        leftPanel.setBounds(0, 0, leftWidth, authHeight);
         addSidebarLogo(leftPanel);
 
         if (accountType.equals("Employer")) {
@@ -701,7 +716,7 @@ public class Frame extends JFrame implements ActionListener, KeyListener {
         JPanel rightPanel = new JPanel();
         rightPanel.setLayout(null);
         rightPanel.setBackground(Color.decode("#F7FAFD"));
-        rightPanel.setBounds(leftWidth, 0, rightWidth, canvasHeight);
+        rightPanel.setBounds(leftWidth, 0, rightWidth, authHeight);
 
         closeRegisterBtn = new JButton("X");
         closeRegisterBtn.setFont(new Font("Inter", Font.BOLD, 24));
@@ -869,6 +884,9 @@ public class Frame extends JFrame implements ActionListener, KeyListener {
 
         grid.gridx = 0;
         grid.gridy = 0;
+        grid.weightx = 1.0;
+        grid.weighty = 1.0;
+        grid.fill = GridBagConstraints.BOTH;
         grid.anchor = GridBagConstraints.CENTER;
         centerWrapper.add(registerPanel, grid);
 

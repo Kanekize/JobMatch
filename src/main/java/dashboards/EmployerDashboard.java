@@ -26,11 +26,9 @@ public class EmployerDashboard extends Dashboard {
     @Override
     protected void buildContent() {
         layout = new Layout(this);
-        // Display the Home Page inside the content window by default on startup
         showPage(new EmployerHomePage(getUser()));
     }
 
-    // FIXED: Cleaned up the broken duplicate method collision blocks
     @Override
     public void onMenuClick(String name) {
         layout.setActive(name);

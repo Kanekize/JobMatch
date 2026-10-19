@@ -143,7 +143,7 @@ public final class ApplicantRepository {
                 OR LOWER(COALESCE(p.skills, '')) LIKE ?
             )
 
-            ORDER BY a.id DESC
+            ORDER BY a.applied_at DESC
             """;
 
         String pattern = "%" +
@@ -283,4 +283,54 @@ public final class ApplicantRepository {
             }
         }
     }
-}
+
+    // main resume = applicant profile, sub resume = profile details
+    //find account by their email then loads that exisitng information
+    public static String[] loadApplicantProfile(String email) throws SQLException {
+        String sql = "SELECT professional_title, location, skills, education, experience, about "
+                + "FROM jm_applicant_profiles WHERE LOWER(applicant_email) = ?";
+
+        try (Connection conn = FeatureDatabase.connect();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, email.toLowerCase());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new String[] {
+                            rs.getString("professional_title"),
+                            rs.getString("location"),
+                            rs.getString("skills"),
+                            rs.getString("education"),
+                            rs.getString("experience"),
+                            rs.getString("about")
+                    };
+                }
+            }
+        }
+        return null;
+    }
+
+   // saves the assessment or editing it
+    public static void saveApplicantProfile(String email, String headline, String location,
+                                            String skills, String education, String experience,
+                                            String about) throws SQLException {
+        String sql = "INSERT OR REPLACE INTO jm_applicant_profiles "
+                + "(applicant_email, professional_title, location, skills, education, experience, about) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+        try (Connection conn = FeatureDatabase.connect();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, email.toLowerCase());
+            ps.setString(2, headline);
+            ps.setString(3, location);
+            ps.setString(4, skills);
+            ps.setString(5, education);
+            ps.setString(6, experience);
+            ps.setString(7, about);
+            ps.executeUpdate();
+        }
+    }
+
+} //end
+

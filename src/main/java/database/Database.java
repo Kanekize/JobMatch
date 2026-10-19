@@ -15,7 +15,9 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Database {
     private static final String DB_FOLDER = "data";
@@ -132,6 +134,53 @@ public class Database {
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(applicationsTable);
         }
+
+        String submissionsTable = "CREATE TABLE IF NOT EXISTS assessment_submissions (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "user_email TEXT, " +
+                "profile_type TEXT, " +
+                "submitted_at TEXT DEFAULT CURRENT_TIMESTAMP)";
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(submissionsTable);
+        }
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("ALTER TABLE assessment_submissions ADD COLUMN user_email TEXT");
+        } catch (SQLException e) {}
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("ALTER TABLE assessment_submissions ADD COLUMN profile_type TEXT");
+        } catch (SQLException e) {}
+
+        String answersTable = "CREATE TABLE IF NOT EXISTS assessment_answers (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "submission_id INTEGER NOT NULL, " +
+                "question_key TEXT NOT NULL, " +
+                "answer_value TEXT)";
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(answersTable);
+        }
+
+        String profileTable = "CREATE TABLE IF NOT EXISTS profile_details (" +
+                "user_email TEXT NOT NULL, " +
+                "field_name TEXT NOT NULL, " +
+                "field_value TEXT, " +
+                "PRIMARY KEY (user_email, field_name))";
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(profileTable);
+        }
+
+        String ratingsTable = "CREATE TABLE IF NOT EXISTS job_ratings (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "job_id INTEGER NOT NULL, " +
+                "seeker_email TEXT NOT NULL, " +
+                "rating_value INTEGER NOT NULL, " +
+                "rated_at TEXT DEFAULT CURRENT_TIMESTAMP, " +
+                "UNIQUE(job_id, seeker_email))";
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(ratingsTable);
+        } try (Statement stmt = conn.createStatement()) {
+            stmt.execute("ALTER TABLE job_ratings ADD COLUMN rated_at TEXT DEFAULT CURRENT_TIMESTAMP");
+            System.out.println("Database column 'rated_at' successfully synchronized onto your job_ratings schema.");
+        } catch (SQLException e) {}
     }
 
     public static void dropTables(Connection conn) throws SQLException {
@@ -780,5 +829,246 @@ public class Database {
             }
         }
     }
+
+    // assessment
+    public static boolean saveUserAssessment(String email, Map<String, String> answers) {
+        String submissionSql = "INSERT INTO assessment_submissions (user_email, profile_type) VALUES (?, ?)";
+        String answerSql = "INSERT INTO assessment_answers (submission_id, question_key, answer_value) VALUES (?, ?, ?)";
+
+        try (Connection conn = DriverManager.getConnection(DB_URL)) {
+            conn.setAutoCommit(false);
+
+            try {
+                int submissionId = 0;
+                try (PreparedStatement ps = conn.prepareStatement(submissionSql, Statement.RETURN_GENERATED_KEYS)) {
+                    ps.setString(1, email.toLowerCase());
+                    ps.setString(2, answers.getOrDefault("Profile Type", ""));
+                    ps.executeUpdate();
+                    try (ResultSet keys = ps.getGeneratedKeys()) {
+                        if (keys.next()) {
+                            submissionId = keys.getInt(1);
+                        }
+                    }
+                }
+                if (submissionId == 0) {
+                    throw new SQLException("No submission id");
+                }
+
+                try (PreparedStatement ps = conn.prepareStatement(answerSql)) {
+                    for (Map.Entry<String, String> entry : answers.entrySet()) {
+                        ps.setInt(1, submissionId);
+                        ps.setString(2, entry.getKey());
+                        ps.setString(3, entry.getValue());
+                        ps.addBatch();
+                    }
+                    ps.executeBatch();
+                }
+
+                conn.commit();
+                return true;
+
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            }
+        } catch (SQLException e) {
+            System.err.println("DB error while saving assessment: " + e.getMessage());
+            return false;
+        }
+    }
+
+    // for collecting all the answers in assessment from their latest
+    public static Map<String, String> getLatestAssessment(String email) {
+        String sql = "SELECT question_key, answer_value FROM assessment_answers " +
+                "WHERE submission_id = (SELECT id FROM assessment_submissions WHERE user_email = ? ORDER BY submitted_at DESC LIMIT 1) " +
+                "ORDER BY rowid";
+        Map<String, String> answers = new LinkedHashMap<>();
+
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, email.toLowerCase());
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    answers.put(rs.getString("question_key"), rs.getString("answer_value"));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+        }
+        return answers;
+    }
+
+    // for knowing the last assessment test date mo sinagutan
+    public static String getLatestAssessmentDate(String email) {
+        String sql = "SELECT submitted_at FROM assessment_submissions WHERE user_email = ? ORDER BY submitted_at DESC LIMIT 1";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, email.toLowerCase());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next() && rs.getString("submitted_at") != null) {
+                    return rs.getString("submitted_at");
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+        }
+        return "";
+    }
+
+    // job seek profile details
+    // main resume = applicant profile, sub resume = profile details
+    public static Map<String, String> getProfileDetails(String email) {
+        String sql = "SELECT field_name, field_value FROM profile_details WHERE user_email = ?";
+        Map<String, String> details = new LinkedHashMap<>();
+
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, email.toLowerCase());
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String value = rs.getString("field_value");
+                    details.put(rs.getString("field_name"), value == null ? "" : value);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+        }
+        return details;
+    }
+
+    public static boolean saveProfileDetails(String email, Map<String, String> details) {
+        String sql = "INSERT OR REPLACE INTO profile_details (user_email, field_name, field_value) VALUES (?, ?, ?)";
+
+        try (Connection conn = DriverManager.getConnection(DB_URL)) {
+            conn.setAutoCommit(false);
+
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                for (Map.Entry<String, String> entry : details.entrySet()) {
+                    ps.setString(1, email.toLowerCase());
+                    ps.setString(2, entry.getKey());
+                    ps.setString(3, entry.getValue());
+                    ps.addBatch();
+                }
+                ps.executeBatch();
+                conn.commit();
+                return true;
+
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            }
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+            return false;
+        }
+    }
+
+    // star rates
+    public static boolean saveJobRating(int jobId, String seekerEmail, int ratingValue) {
+        String sql = "INSERT OR REPLACE INTO job_ratings (job_id, seeker_email, rating_value) VALUES (?, ?, ?)";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, jobId);
+            ps.setString(2, seekerEmail.toLowerCase());
+            ps.setInt(3, ratingValue);
+            ps.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            System.err.println("DB Error saving job rating: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public static int getIndividualJobRating(int jobId, String seekerEmail) {
+        String sql = "SELECT rating_value FROM job_ratings WHERE job_id = ? AND LOWER(seeker_email) = LOWER(?)";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, jobId);
+            ps.setString(2, seekerEmail);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("rating_value");
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("DB Error loading individual rating: " + e.getMessage());
+        }
+        return 0;
+    }
+
+    public static double getAverageJobRating(int jobId) {
+        String sql = "SELECT AVG(rating_value) AS avg_score FROM job_ratings WHERE job_id = ?";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, jobId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    double avg = rs.getDouble("avg_score");
+                    return Math.round(avg * 10.0) / 10.0;
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("DB Error reading average job rating: " + e.getMessage());
+        }
+        return 0.0;
+    }
+
+    public static int getTotalRatingCount(int jobId) {
+        String sql = "SELECT COUNT(*) FROM job_ratings WHERE job_id = ?";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, jobId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("DB Error counting job ratings: " + e.getMessage());
+        }
+        return 0;
+    }
+
+    public static int getSpecificStarCount(int jobId, int starValue) {
+        String sql = "SELECT COUNT(*) FROM job_ratings WHERE job_id = ? AND rating_value = ?";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, jobId);
+            ps.setInt(2, starValue);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("DB Error counting specific stars: " + e.getMessage());
+        }
+        return 0;
+    }
+
+    public static List<String> getVotersForStarRating(int jobId, int starValue) {
+        List<String> voters = new ArrayList<>();
+        String sql = "SELECT u.first_name, u.last_name, r.rated_at FROM job_ratings r " +
+                "JOIN users u ON LOWER(u.email) = LOWER(r.seeker_email) " +
+                "WHERE r.job_id = ? AND r.rating_value = ?";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, jobId);
+            ps.setInt(2, starValue);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String fullName = rs.getString("first_name") + " " + rs.getString("last_name");
+                    String rawDate = rs.getString("rated_at");
+                    String reviewDate = (rawDate != null) ? rawDate.split(" ")[0] : "2026-10-17";
+
+                    voters.add(fullName + "  (" + reviewDate + ")");
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("DB Error retrieving rating voters list: " + e.getMessage());
+        }
+        return voters;
+    }
+
 
 } //pinaka end

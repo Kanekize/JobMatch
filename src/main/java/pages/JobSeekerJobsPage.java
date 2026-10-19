@@ -271,6 +271,11 @@ public class JobSeekerJobsPage extends Page {
             } else if (group.equals("Workplace Accommodations Available")) {
                 String has = job.isAccommodationsAvailable() ? "Yes" : "No";
                 if (!checked.contains(has)) return false;
+            } else if (group.equals("Minimum Star Rating")) {
+                double jobAvg = Database.getAverageJobRating(job.getId());
+                if (checked.contains("5 Stars") && jobAvg < 5.0) return false;
+                if (checked.contains("4 Stars & up") && jobAvg < 4.0) return false;
+                if (checked.contains("3 Stars & up") && jobAvg < 3.0) return false;
             }
         }
         return true;
@@ -306,10 +311,50 @@ public class JobSeekerJobsPage extends Page {
         center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
         center.setOpaque(false);
 
+        JPanel titleRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        titleRow.setOpaque(false);
+        titleRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+
         JLabel titleLabel = new JLabel(job.getTitle());
         titleLabel.setFont(new Font("Inter", Font.BOLD, 17));
         titleLabel.setForeground(Color.decode("#0d0d0d"));
-        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        titleRow.add(titleLabel);
+
+        double averageRating = Database.getAverageJobRating(job.getId());
+        int totalReviewsCount = Database.getTotalRatingCount(job.getId());
+
+        if (totalReviewsCount > 0) {
+            JLabel starIconLabel = new JLabel();
+            java.io.File file = new java.io.File("src/images/star.png");
+            if (!file.exists()) file = new java.io.File("JobMatch/src/images/star.png");
+
+            if (file.exists()) {
+                Image img = new ImageIcon(file.getPath()).getImage().getScaledInstance(14, 14, Image.SCALE_SMOOTH);
+                starIconLabel.setIcon(new ImageIcon(img));
+            } else {
+                starIconLabel.setText("★ ");
+                starIconLabel.setForeground(Color.decode("#f59e0b"));
+            }
+            titleRow.add(starIconLabel);
+
+            JLabel starBadge = new JLabel(String.valueOf(averageRating));
+            starBadge.setFont(new Font("Inter", Font.BOLD, 13));
+            starBadge.setForeground(Color.decode("#f59e0b"));
+            titleRow.add(starBadge);
+
+            JButton reviewsLinkBtn = new JButton("(" + totalReviewsCount + " reviews)");
+            reviewsLinkBtn.setFont(new Font("Inter", Font.PLAIN, 12));
+            reviewsLinkBtn.setForeground(Color.decode("#2563eb"));
+            reviewsLinkBtn.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Color.decode("#2563eb")));
+            reviewsLinkBtn.setContentAreaFilled(false);
+            reviewsLinkBtn.setOpaque(false);
+            reviewsLinkBtn.setFocusable(false);
+            reviewsLinkBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            reviewsLinkBtn.addActionListener(e -> showDetailedReviewsBreakdown(job));
+            titleRow.add(reviewsLinkBtn);
+        }
+
+        center.add(titleRow);
 
         JLabel companyLabel = new JLabel(Database.getEmployerCompanyName(job.getEmployerEmail()));
         companyLabel.setFont(new Font("Inter", Font.PLAIN, 13));
@@ -340,7 +385,6 @@ public class JobSeekerJobsPage extends Page {
             chips.add(chip);
         }
 
-        center.add(titleLabel);
         center.add(companyLabel);
         center.add(locationRow);
         center.add(typeRow);
@@ -417,6 +461,87 @@ public class JobSeekerJobsPage extends Page {
         return card;
     }
 
+    /**
+     * Creates and displays a separate view dialog frame containing the detailed
+     * 5-column filter dashboard displaying reviewer user names based on matching criteria entries.
+     */
+    /**
+     * Renders an optimized, modern 5-column dashboard panel using JPanels as interactive
+     * flat cards to inspect rating score breakdowns without using HTML or complex graphics.
+     */
+    private void showDetailedReviewsBreakdown(Job job) {
+        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Ratings Breakdown - " + job.getTitle(), true);
+        dialog.setSize(560, 400);
+        dialog.setLocationRelativeTo(this);
+        dialog.setLayout(new BorderLayout());
+
+        JPanel columnsMasterContainer = new JPanel(new GridLayout(1, 5, 8, 0));
+        columnsMasterContainer.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        columnsMasterContainer.setBackground(Color.decode("#f8fafc"));
+
+        JPanel detailsContainerPanel = new JPanel(new BorderLayout());
+        detailsContainerPanel.setBackground(Color.WHITE);
+        detailsContainerPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, Color.decode("#e2e8f0")),
+                BorderFactory.createEmptyBorder(10, 15, 15, 15)));
+
+        JLabel sectionInfoLabel = new JLabel("Click any star column tab button above to inspect reviewer names list");
+        sectionInfoLabel.setFont(new Font("Inter", Font.PLAIN, 13));
+        sectionInfoLabel.setForeground(Color.decode("#6b7280"));
+        detailsContainerPanel.add(sectionInfoLabel, BorderLayout.CENTER);
+
+        for (int starIndex = 5; starIndex >= 1; starIndex--) {
+            final int targetColumnValue = starIndex;
+            int reviewMatchesCount = Database.getSpecificStarCount(job.getId(), targetColumnValue);
+
+            JPanel columnBlock = new JPanel(new BorderLayout(0, 6));
+            columnBlock.setOpaque(false);
+
+            JButton filterSelectBtn = new JButton(targetColumnValue + " Star (" + reviewMatchesCount + ")");
+            filterSelectBtn.setFont(new Font("Inter", Font.BOLD, 12));
+            filterSelectBtn.setBackground(Color.WHITE);
+            filterSelectBtn.setFocusable(false);
+            filterSelectBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+            filterSelectBtn.addActionListener(clickEvent -> {
+                detailsContainerPanel.removeAll();
+
+                JLabel contextTitle = new JLabel("Users who voted " + targetColumnValue + " Stars:");
+                contextTitle.setFont(new Font("Inter", Font.BOLD, 14));
+                contextTitle.setForeground(Color.decode("#0d0d0d"));
+                contextTitle.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
+                detailsContainerPanel.add(contextTitle, BorderLayout.NORTH);
+
+                List<String> votersInfoList = Database.getVotersForStarRating(job.getId(), targetColumnValue);
+                if (votersInfoList.isEmpty()) {
+                    JLabel noVotesMsg = new JLabel("No job seekers have submitted a " + targetColumnValue + "-star rating yet.");
+                    noVotesMsg.setFont(new Font("Inter", Font.PLAIN, 13));
+                    noVotesMsg.setForeground(Color.decode("#6b7280"));
+                    detailsContainerPanel.add(noVotesMsg, BorderLayout.CENTER);
+                } else {
+                    DefaultListModel<String> stringListModel = new DefaultListModel<>();
+                    for (String infoRow : votersInfoList) {
+                        stringListModel.addElement(infoRow);
+                    }
+                    JList<String> itemsDisplayList = new JList<>(stringListModel);
+                    itemsDisplayList.setFont(new Font("Inter", Font.PLAIN, 13));
+                    detailsContainerPanel.add(new JScrollPane(itemsDisplayList), BorderLayout.CENTER);
+                }
+                detailsContainerPanel.revalidate();
+                detailsContainerPanel.repaint();
+            });
+
+            columnBlock.add(filterSelectBtn, BorderLayout.NORTH);
+            columnsMasterContainer.add(columnBlock);
+        }
+
+        dialog.add(columnsMasterContainer, BorderLayout.NORTH);
+        dialog.add(detailsContainerPanel, BorderLayout.CENTER);
+        dialog.setVisible(true);
+    }
+
+
+
     private ImageIcon loadIcon(String fileName, int width, int height) {
         java.io.File file = new java.io.File("src/images/" + fileName);
         if (!file.exists()) file = new java.io.File("JobMatch/src/images/" + fileName);
@@ -476,6 +601,8 @@ public class JobSeekerJobsPage extends Page {
         addFilterGroup(groupsPanel, boxesByGroup, "Job Type", new String[]{"Full-time", "Part-time", "Contract"});
         addFilterGroup(groupsPanel, boxesByGroup, "Workplace Type", new String[]{"On-site", "Remote Work", "Hybrid Work"});
         addFilterGroup(groupsPanel, boxesByGroup, "Workplace Accommodations Available", new String[]{"Yes", "No"});
+        addFilterGroup(groupsPanel, boxesByGroup, "Minimum Star Rating",
+                new String[]{"5 Stars", "4 Stars & up", "3 Stars & up"});
 
         JScrollPane scroll = new JScrollPane(groupsPanel);
         scroll.setPreferredSize(new Dimension(340, 420));

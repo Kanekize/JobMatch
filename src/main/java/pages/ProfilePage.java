@@ -1,5 +1,6 @@
 package pages;
 
+import database.Database;
 import models.SeekerProfile;
 import components.RoundedLineBorder;
 import users.User;
@@ -9,10 +10,12 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 // profile ng job seeker. header card sa taas, tapos 2 columns:
-// left = about, skills, education, work experience, certifications
-// right = job preference, assessment summary, resume
+// left = about, skills, education, work experience, certifications,
+//        skill details, interests, needs & support (these 3 come from the assessment)
+// right = job preference, work preferences (from the assessment), assessment summary, resume
 public class ProfilePage extends Page {
 
     private SeekerProfile profile;
@@ -37,6 +40,9 @@ public class ProfilePage extends Page {
         addToColumn(left, makeEducationCard());
         addToColumn(left, makeExperienceCard());
         addToColumn(left, makeCertificationsCard());
+        addToColumn(left, makeInfoCard("Skill Details", skillRows, "#4b5563", "Take the assessment to see your skill details here."));   // ADD THIS
+        addToColumn(left, makeInfoCard("Interests", interestRows, "#4b5563", "Take the assessment to see your interests here."));          // ADD THIS
+        addToColumn(left, makeInfoCard("Needs & Support", needsRows(), "#4b5563", "Take the assessment to see your needs here."));           // ADD THIS
 
         JPanel right = new JPanel();
         right.setLayout(new BoxLayout(right, BoxLayout.Y_AXIS));
@@ -47,6 +53,7 @@ public class ProfilePage extends Page {
         widthStrut.setAlignmentX(Component.LEFT_ALIGNMENT);
         right.add(widthStrut);
         addToColumn(right, makePreferenceCard());
+        addToColumn(right, makeInfoCard("Work Preferences", workPreferenceRows, "#2563eb", "Take the assessment to see your work preferences here."));   // ADD THIS
         addToColumn(right, makeAssessmentCard());
         addToColumn(right, makeResumeCard());
 
@@ -198,10 +205,10 @@ public class ProfilePage extends Page {
             card.add(makeHint("No education added yet."));
             return card;
         }
-        card.add(makeLine(profile.getSchool(), 14, Font.BOLD, "#0d0d0d"));
-        card.add(makeLine(profile.getDegree(), 12, Font.PLAIN, "#4b5563"));
-        card.add(makeLine(profile.getYearLevel(), 12, Font.PLAIN, "#4b5563"));
-        card.add(makeLine(profile.getSchoolPeriod(), 12, Font.PLAIN, "#6b7280"));
+        addLine(card, profile.getSchool(), 14, Font.BOLD, "#0d0d0d");
+        addLine(card, profile.getDegree(), 12, Font.PLAIN, "#4b5563");
+        addLine(card, profile.getYearLevel(), 12, Font.PLAIN, "#4b5563");
+        addLine(card, profile.getSchoolPeriod(), 12, Font.PLAIN, "#6b7280");
         return card;
     }
 
@@ -211,9 +218,9 @@ public class ProfilePage extends Page {
             card.add(makeHint("No work experience added yet."));
             return card;
         }
-        card.add(makeLine(profile.getRole(), 14, Font.BOLD, "#0d0d0d"));
-        card.add(makeLine(profile.getCompany(), 12, Font.PLAIN, "#4b5563"));
-        card.add(makeLine(profile.getWorkPeriod(), 12, Font.PLAIN, "#6b7280"));
+        addLine(card, profile.getRole(), 14, Font.BOLD, "#0d0d0d");
+        addLine(card, profile.getCompany(), 12, Font.PLAIN, "#4b5563");
+        addLine(card, profile.getWorkPeriod(), 12, Font.PLAIN, "#6b7280");
         card.add(Box.createVerticalStrut(4));
         for (String detail : profile.getWorkDetails()) {
             card.add(EmployerJobsPage.makeWrapText("•  " + detail, 12, Color.decode("#4b5563")));
@@ -251,7 +258,18 @@ public class ProfilePage extends Page {
 
     private JPanel makeAssessmentCard() {
         JPanel card = makeCard("Assessment Summary", null);
-        card.add(makeHint(profile.isAssessmentTaken() ? "Assessment completed." : "You haven't taken the assessment yet."));
+        if (profile.isAssessmentTaken()) {
+            String done = "Assessment completed";
+            if (!profile.getAssessmentDateText().isEmpty()) {
+                done += " on " + profile.getAssessmentDateText();
+            }
+            card.add(makeHint(done + "."));
+            if (!profile.get("profileType").isBlank()) {
+                card.add(EmployerJobsPage.makeWrapText("Profile type: " + profile.get("profileType"), 12, Color.decode("#6b7280")));
+            }
+        } else {
+            card.add(makeHint("You haven't taken the assessment yet."));
+        }
         card.add(Box.createVerticalStrut(10));
 
         JButton viewBtn = makeWhiteButton("View");
@@ -280,7 +298,7 @@ public class ProfilePage extends Page {
         if (showForm("Edit Profile", "Headline", headline, "Location", location)) {
             profile.setHeadline(headline.getText().trim());
             profile.setLocation(location.getText().trim());
-            build();
+            saveAndBuild();
         }
     }
 
@@ -290,7 +308,7 @@ public class ProfilePage extends Page {
         area.setWrapStyleWord(true);
         if (showForm("Edit About", "About", new JScrollPane(area))) {
             profile.setAbout(area.getText().trim());
-            build();
+            saveAndBuild();
         }
     }
 
@@ -307,7 +325,7 @@ public class ProfilePage extends Page {
             }
         }
         profile.getSkills().add(skill);
-        build();
+        saveAndBuild();
     }
 
     private void removeSkill(String skill) {
@@ -315,7 +333,7 @@ public class ProfilePage extends Page {
                 "Remove Skill", JOptionPane.YES_NO_OPTION);
         if (choice == JOptionPane.YES_OPTION) {
             profile.getSkills().remove(skill);
-            build();
+            saveAndBuild();
         }
     }
 
@@ -330,7 +348,7 @@ public class ProfilePage extends Page {
             profile.setDegree(degree.getText().trim());
             profile.setYearLevel(year.getText().trim());
             profile.setSchoolPeriod(period.getText().trim());
-            build();
+            saveAndBuild();
         }
     }
 
@@ -346,7 +364,7 @@ public class ProfilePage extends Page {
             profile.setWorkPeriod(period.getText().trim());
             profile.getWorkDetails().clear();
             profile.getWorkDetails().addAll(splitLines(details.getText()));
-            build();
+            saveAndBuild();
         }
     }
 
@@ -355,7 +373,7 @@ public class ProfilePage extends Page {
         if (showForm("Edit Certifications", "Certifications (one per line)", new JScrollPane(area))) {
             profile.getCertifications().clear();
             profile.getCertifications().addAll(splitLines(area.getText()));
-            build();
+            saveAndBuild();
         }
     }
 
@@ -370,7 +388,7 @@ public class ProfilePage extends Page {
             profile.setPreferredIndustry(industry.getText().trim());
             profile.setPreferredArrangement(arrangement.getText().trim());
             profile.setPreferredEmploymentType(type.getText().trim());
-            build();
+            saveAndBuild();
         }
     }
 
@@ -382,8 +400,41 @@ public class ProfilePage extends Page {
             if (choice == JOptionPane.YES_OPTION) {
                 getDashboard().onMenuClick("Assessment");
             }
+            return;
         }
-        // TODO: ipakita ung summary pag may result na ang assessment
+
+        // get the answers of the newest assessment from the database and write them section by section
+        Map<String, String> answers = Database.getLatestAssessment(getUser().getEmail());
+        StringBuilder text = new StringBuilder();
+        for (String[] section : assessmentSections) {
+            StringBuilder part = new StringBuilder();
+            for (int i = 1; i < section.length; i++) {
+                String answer = answers.get(section[i]);
+                if (answer != null && !answer.isBlank()) {
+                    part.append(getLabel(section[i])).append(": ").append(answer).append("\n");
+                }
+            }
+            if (part.length() > 0) {
+                text.append(section[0].toUpperCase()).append("\n").append(part).append("\n");
+            }
+        }
+        if (text.length() == 0) {
+            text.append("No answers found.");
+        }
+
+        JTextArea area = new JTextArea(text.toString(), 18, 46);
+        area.setEditable(false);
+        area.setLineWrap(true);
+        area.setWrapStyleWord(true);
+        area.setFont(new Font("Inter", Font.PLAIN, 13));
+        area.setCaretPosition(0);
+
+        Object[] buttons = {"Close", "Retake Assessment"};
+        int choice = JOptionPane.showOptionDialog(this, new JScrollPane(area), "Assessment Summary",
+                JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, buttons, buttons[0]);
+        if (choice == 1) {
+            getDashboard().onMenuClick("Assessment");
+        }
     }
 
     private void chooseResume() {
@@ -392,8 +443,158 @@ public class ProfilePage extends Page {
         chooser.setFileFilter(new FileNameExtensionFilter("Resume (PDF, DOC, DOCX)", "pdf", "doc", "docx"));
         if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             profile.setResumeName(chooser.getSelectedFile().getName());
-            build();
+            saveAndBuild();
         }
+    }
+
+    // cards from the assessment
+    private static final String[][] skillRows = {
+            {"strongestSkill", "Strongest Skill"},
+            {"skillLevel", "Skill Level"},
+            {"languages", "Languages"},
+            {"experienceLevel", "Work Experience Level"}
+    };
+
+    private static final String[][] interestRows = {
+            {"workTypes", "Types of Work I'm Interested In"},
+            {"workEnjoy", "Work I Enjoy"},
+            {"jobMotivators", "What Matters Most to Me"},
+            {"customInterest", "Other Interests"}
+    };
+
+    private static final String[][] workPreferenceRows = {
+            {"opportunity", "Looking For"},
+            {"relatedOpportunities", "Open to Related Roles"},
+            {"shift", "Preferred Shift"},
+            {"hoursPerShift", "Hours Per Shift"},
+            {"hoursPerWeek", "Hours Per Week"},
+            {"workLocation", "Preferred Work Location"},
+            {"scheduleDetails", "Schedule Details"}
+    };
+
+    private static final String[][] assessmentSections = {
+            {"Profile", "Profile Type", "Resume File"},
+            {"Career Goals", "opportunity", "industries", "jobRoles", "relatedOpportunities"},
+            {"Skills", "skills", "strongestSkill", "skillLevel", "languages", "recentJob", "experience", "qualifications"},
+            {"Interests", "workTypes", "workEnjoy", "jobMotivators", "customInterest"},
+            {"Work Preferences", "employmentType", "workSetup", "shift", "hoursPerShift", "hoursPerWeek", "location", "scheduleDetails"},
+            {"Needs", "availability", "classSchedule", "educationLevel", "studentSupport",
+                    "accommodations", "workEnvironment", "preferredTasks", "accessibilityDetails",
+                    "otherAccommodation", "supportNeeded",
+                    "seniorEmployment", "seniorSchedule", "seniorWorkplace", "seniorWorkload", "seniorSupport", "seniorDetails",
+                    "regularPurpose", "desiredPosition", "regularEnvironment", "regularNeeds"}
+    };
+
+    private String[][] needsRows() {
+        String type = profile.get("profileType");
+
+        if (type.equals("Student")) {
+            return new String[][]{
+                    {"availability", "When I'm Available"},
+                    {"classSchedule", "Work Must Fit My Class Schedule"},
+                    {"educationLevel", "Education Level"},
+                    {"studentSupport", "Support That Helps Me"}
+            };
+        } else if (type.startsWith("PWD")) {
+            return new String[][]{
+                    {"accommodations", "Workplace Support I Need"},
+                    {"workEnvironment", "Work Environment"},
+                    {"preferredTasks", "Tasks I Prefer to Avoid"},
+                    {"accessibilityDetails", "Accessibility Details"},
+                    {"otherAccommodation", "Additional Workplace Support"},
+                    {"supportNeeded", "Other Support Needed"}
+            };
+        } else if (type.equals("Senior Citizen")) {
+            return new String[][]{
+                    {"seniorEmployment", "Employment Type"},
+                    {"seniorSchedule", "Preferred Schedule"},
+                    {"seniorWorkplace", "Workplace Preferences"},
+                    {"seniorWorkload", "Workload"},
+                    {"seniorSupport", "Support That Helps Me"},
+                    {"seniorDetails", "Additional Preferences"}
+            };
+        }
+        // placeholder regular applicant auto
+        return new String[][]{
+                {"regularPurpose", "What I'm Looking For"},
+                {"desiredPosition", "Position I Want"},
+                {"regularEnvironment", "Work Environment"},
+                {"regularNeeds", "Other Workplace Needs"}
+        };
+    }
+
+    // the rows without an answer are not shown
+    private JPanel makeInfoCard(String title, String[][] rows, String valueColor, String hint) {
+        JPanel card = makeCard(title, () -> editRows(title, rows));
+
+        boolean anyAnswer = false;
+        for (String[] row : rows) {
+            String answer = profile.get(row[0]);
+            if (answer.isBlank()) {
+                continue;
+            }
+            anyAnswer = true;
+            card.add(makeLine(row[1], 12, Font.BOLD, "#0d0d0d"));
+            card.add(EmployerJobsPage.makeWrapText(answer, 12, Color.decode(valueColor)));
+            card.add(Box.createVerticalStrut(6));
+        }
+
+        if (!anyAnswer) {
+            card.add(makeHint(hint));
+        }
+        return card;
+    }
+
+    // edit buttons
+    private void editRows(String title, String[][] rows) {
+        Object[] formItems = new Object[rows.length * 2 + 2];
+        JTextField[] boxes = new JTextField[rows.length];
+
+        formItems[0] = "Tip";
+        formItems[1] = makeHint("If there are many answers, separate them with a comma.");
+
+        for (int i = 0; i < rows.length; i++) {
+            boxes[i] = new JTextField(profile.get(rows[i][0]), 28);
+            formItems[i * 2 + 2] = rows[i][1];
+            formItems[i * 2 + 3] = boxes[i];
+        }
+
+        if (showForm("Edit " + title, formItems)) {
+            for (int i = 0; i < rows.length; i++) {
+                profile.set(rows[i][0], boxes[i].getText());
+            }
+            saveAndBuild();
+        }
+    }
+
+    private void addLine(JPanel card, String text, int size, int style, String color) {
+        if (!text.isBlank()) {
+            card.add(makeLine(text, size, style, color));
+        }
+    }
+
+    private String getLabel(String key) {
+        String[][] names = {
+                {"jobRoles", "Preferred Job Roles"}, {"relatedOpportunities", "Open to Related Roles"},
+                {"workTypes", "Interested Work Types"}, {"workEnjoy", "Enjoyable Work"},
+                {"jobMotivators", "Job Priorities"}, {"customInterest", "Other Interests"},
+                {"seniorWorkplace", "Workplace Preferences"}, {"seniorDetails", "Additional Preferences"},
+                {"otherAccommodation", "Additional Workplace Support"}, {"supportNeeded", "Other Support Needed"},
+                {"regularNeeds", "Other Workplace Needs"}
+        };
+        for (String[] name : names) {
+            if (name[0].equals(key)) {
+                return name[1];
+            }
+        }
+        String spaced = key.replaceAll("([a-z])([A-Z])", "$1 $2");
+        return Character.toUpperCase(spaced.charAt(0)) + spaced.substring(1);
+    }
+
+    // saves the profile in the database, then builds the page again
+    private void saveAndBuild() {
+        profile.save();
+        build();
     }
 
     // ----------------------------------------------------------------- helpers
