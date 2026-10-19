@@ -491,17 +491,31 @@ profileGrid.setMaximumSize(new Dimension(Integer.MAX_VALUE, 260));        addTyp
         c.add(gap());
         c.add(label("7. Do you have any certificates, training, or other qualifications?"));
 
-        JPanel radioWrapper = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
+        JPanel radioWrapper = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0)); // Padding set to 0 for strict left alignment
         radioWrapper.setOpaque(false);
+        radioWrapper.setAlignmentX(Component.LEFT_ALIGNMENT); // Forces the block to sit cleanly beneath the text string label
+
         certYesRadio = new JRadioButton("Yes");
+        certYesRadio.setFont(new Font("Arial", Font.PLAIN, 12));
+        certYesRadio.setFocusPainted(false);
+        certYesRadio.setOpaque(false);
+
         certNoRadio = new JRadioButton("No");
+        certNoRadio.setFont(new Font("Arial", Font.PLAIN, 12));
+        certNoRadio.setFocusPainted(false);
+        certNoRadio.setOpaque(false);
         certNoRadio.setSelected(true);
+
         ButtonGroup certGroup = new ButtonGroup();
         certGroup.add(certYesRadio);
         certGroup.add(certNoRadio);
+
         radioWrapper.add(certYesRadio);
+        radioWrapper.add(Box.createHorizontalStrut(15));
         radioWrapper.add(certNoRadio);
+
         c.add(radioWrapper);
+        c.add(Box.createVerticalStrut(6));
 
         certUploadSection = new JPanel();
         certUploadSection.setLayout(new BoxLayout(certUploadSection, BoxLayout.Y_AXIS));

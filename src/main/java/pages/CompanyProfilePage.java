@@ -33,7 +33,7 @@ public class CompanyProfilePage extends Page {
                 "Manage your company profile details and profile image.", null), 15);
         addBlock(makeOverviewCard(), 15);
         addBlock(makeCompanyDetailsCard(), 15);
-        addBlock(makeBrandingCard(), 15);
+
 
         addBlock(makeLegalDocumentationCard(), 0);
 
@@ -218,6 +218,14 @@ public class CompanyProfilePage extends Page {
         permitBtn.addActionListener(e -> changePermit());
         actionSide.add(permitBtn);
         card.add(actionSide, BorderLayout.EAST);
+
+        String[][] rows = {
+                {"Industry", getDetail("companyIndustry")},
+                {"Company Size", getDetail("companySize")},
+                {"Website", getDetail("companyWebsite")},
+                {"Phone", getDetail("companyPhone")},
+                {"Location", getDetail("companyLocation")}
+        };
 
         for (String[] row : rows) {
             JPanel line = new JPanel(new BorderLayout(8, 0));
