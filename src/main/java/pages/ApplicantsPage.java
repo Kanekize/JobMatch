@@ -11,12 +11,16 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 
 import java.awt.*;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
 public class ApplicantsPage extends JPanel {
+    private static final String INTERVIEW_DATE_TIME_PATTERN = "yyyy-MM-dd HH:mm";
 
     private final User employer;
 
@@ -354,8 +358,130 @@ public class ApplicantsPage extends JPanel {
             return;
         }
 
+        if ("Interview".equals(newStatus)) {
+            if (!scheduleInterviewFromTable(p)) {
+                return;
+            }
+        }
+
         Database.updateApplicantStatus(p.getId(), newStatus);
         refresh();
         JOptionPane.showMessageDialog(this, "Status updated successfully.");
+    }
+
+    private boolean scheduleInterviewFromTable(Applicant p) {
+        if (p.getEmail() == null || p.getEmail().isBlank()) {
+            JOptionPane.showMessageDialog(this,
+                "Cannot schedule interview because this applicant has no email.");
+            return false;
+        }
+
+        Date initialDate = Date.from(LocalDateTime.now().plusDays(1).withMinute(0).withSecond(0).withNano(0)
+            .atZone(ZoneId.systemDefault()).toInstant());
+        JSpinner dateTimeSpinner = new JSpinner(
+            new SpinnerDateModel(initialDate, null, null, java.util.Calendar.MINUTE)
+        );
+        JSpinner.DateEditor editor = new JSpinner.DateEditor(dateTimeSpinner, INTERVIEW_DATE_TIME_PATTERN);
+        dateTimeSpinner.setEditor(editor);
+        ((JSpinner.DefaultEditor) dateTimeSpinner.getEditor()).getTextField().setColumns(16);
+
+        JTextField locationField = new JTextField("Company Office");
+        JComboBox<String> modeBox = new JComboBox<>(new String[]{"On-site", "Online", "Phone"});
+        JTextField linkField = new JTextField();
+        JTextArea notesArea = new JTextArea(4, 22);
+        notesArea.setLineWrap(true);
+        notesArea.setWrapStyleWord(true);
+
+        JPanel form = new JPanel(new GridBagLayout());
+        GridBagConstraints c = new GridBagConstraints();
+        c.gridx = 0;
+        c.gridy = 0;
+        c.anchor = GridBagConstraints.WEST;
+        c.insets = new Insets(0, 0, 6, 10);
+        form.add(new JLabel("Date & Time:"), c);
+        c.gridy++;
+        form.add(new JLabel("Interview Location:"), c);
+        c.gridy++;
+        form.add(new JLabel("Interview Mode:"), c);
+        c.gridy++;
+        form.add(new JLabel("Online Meeting Link:"), c);
+        c.gridy++;
+        c.anchor = GridBagConstraints.NORTHWEST;
+        form.add(new JLabel("Notes:"), c);
+
+        c.gridx = 1;
+        c.gridy = 0;
+        c.weightx = 1.0;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.insets = new Insets(0, 0, 6, 0);
+        form.add(dateTimeSpinner, c);
+        c.gridy++;
+        form.add(locationField, c);
+        c.gridy++;
+        form.add(modeBox, c);
+        c.gridy++;
+        form.add(linkField, c);
+        c.gridy++;
+        c.weighty = 1.0;
+        c.fill = GridBagConstraints.BOTH;
+        form.add(new JScrollPane(notesArea), c);
+
+        Runnable syncModeFields = () -> {
+            boolean isOnline = "Online".equals(String.valueOf(modeBox.getSelectedItem()));
+            linkField.setEnabled(isOnline);
+            if (isOnline) {
+                locationField.setText("Online");
+                locationField.setEnabled(false);
+            } else {
+                if ("Online".equalsIgnoreCase(locationField.getText().trim())) {
+                    locationField.setText("Company Office");
+                }
+                locationField.setEnabled(true);
+            }
+        };
+        modeBox.addActionListener(e -> syncModeFields.run());
+        syncModeFields.run();
+
+        int result = JOptionPane.showConfirmDialog(
+            this, form, "Schedule Interview for " + p.getName(),
+            JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE
+        );
+        if (result != JOptionPane.OK_OPTION) {
+            return false;
+        }
+
+        Date selectedDate = (Date) dateTimeSpinner.getValue();
+        LocalDateTime scheduledAt = LocalDateTime.ofInstant(selectedDate.toInstant(), ZoneId.systemDefault());
+
+        String interviewMode = String.valueOf(modeBox.getSelectedItem());
+        String location = locationField.getText().trim();
+        if ("Online".equals(interviewMode)) {
+            String link = linkField.getText().trim();
+            if (link.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Please provide the online meeting link.");
+                return false;
+            }
+            location = link;
+        } else if (location.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Interview location is required.");
+            return false;
+        }
+
+        boolean saved = Database.saveInterviewSchedule(
+            p.getId(),
+            p.getJobId(),
+            p.getEmail(),
+            employer.getEmail(),
+            scheduledAt,
+            location,
+            interviewMode,
+            notesArea.getText().trim()
+        );
+        if (!saved) {
+            JOptionPane.showMessageDialog(this, "Could not save interview details.");
+            return false;
+        }
+
+        return true;
     }
 }

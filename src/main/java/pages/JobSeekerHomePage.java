@@ -2,27 +2,52 @@ package pages;
 
 import components.SectionPanel;
 import components.StatCard;
+import database.Database;
+import models.JobApplication;
+import models.SeekerProfile;
 import users.User;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.List;
 
 public class JobSeekerHomePage extends Page {
 
     public JobSeekerHomePage(User user) {
         super(user);
+        SeekerProfile profile = SeekerProfile.forUser(user);
+        List<JobApplication> applications = Database.getApplicationsForSeeker(user.getEmail());
+
+        int activeApplications = 0;
+        for (JobApplication application : applications) {
+            String status = application.getStatus();
+            if (!"Rejected".equalsIgnoreCase(status) && !"Accepted".equalsIgnoreCase(status)) {
+                activeApplications++;
+            }
+        }
+
+        String assessmentStatus = profile.isAssessmentTaken() ? "Taken" : "Not Taken";
 
         addBlock(makeHeading(getGreeting() + ", " + user.getDisplayName(),
                 "Here's what's happening with your JobMatch profile.", null), 15);
 
         JPanel counters = new JPanel(new GridLayout(1, 3, 15, 0));
         counters.setOpaque(false);
-        counters.add(new StatCard("Profile Completion", "0%", Color.decode("#0d0d0d"), "user-blue.png", Color.decode("#dbeafe")));
-        counters.add(new StatCard("Assessment", "Not Taken", Color.decode("#16a34a"), "assessment.png", Color.decode("#dcfce7")));
-        counters.add(new StatCard("Active Applications", "0", Color.decode("#2563eb"), "applications.png", Color.decode("#dbeafe")));
+
+        StatCard profileCard = new StatCard("Profile Completion", profile.getCompletion() + "%", Color.decode("#0d0d0d"), "user-blue.png", Color.decode("#dbeafe"));
+        profileCard.addActionListener(e -> getDashboard().showPage(new ProfilePage(getUser())));
+        counters.add(profileCard);
+
+        StatCard assessmentCard = new StatCard("Assessment", assessmentStatus, Color.decode("#16a34a"), "dashassessment.png", Color.decode("#dcfce7"));
+        assessmentCard.addActionListener(e -> getDashboard().showPage(new AssessmentPage(getUser())));
+        counters.add(assessmentCard);
+
+        StatCard applicationsCard = new StatCard("Active Applications", String.valueOf(activeApplications), Color.decode("#2563eb"), "applicationlist.png", Color.decode("#dbeafe"));
+        applicationsCard.addActionListener(e -> getDashboard().showPage(new ApplicationsPage(getUser())));
+        counters.add(applicationsCard);
         addBlock(counters, 20);
 
-        // click = see all jobs
+
         SectionPanel recommended = new SectionPanel("Recommended for You", "View all jobs >", 3, 72, false);
         recommended.setEmptyState("No recommendations yet.");
         recommended.getViewAllButton().addActionListener(e ->

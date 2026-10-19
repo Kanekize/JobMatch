@@ -25,6 +25,7 @@ public class EmployerHomePage extends Page implements ActionListener {
             if (job.getStatus().equals("Active")) activeCount++;
         }
         int totalApplicants = Database.countApplicantsByEmployer(user.getEmail());
+        int interviewsScheduled = Database.countInterviewSchedulesByEmployer(user.getEmail());
         List<Applicant> recentApplicants = Database.getRecentApplicantsByEmployer(user.getEmail(), 3);
 
         JButton postJobBtn = makeBlueButton("Post a Job");
@@ -35,19 +36,32 @@ public class EmployerHomePage extends Page implements ActionListener {
 
         JPanel counters = new JPanel(new GridLayout(1, 4, 15, 0));
         counters.setOpaque(false);
-        counters.add(new StatCard("Active Job Postings", String.valueOf(activeCount), Color.decode("#2563eb")));
-        counters.add(new StatCard("Total Applications", String.valueOf(totalApplicants), Color.decode("#16a34a")));
-        counters.add(new StatCard("Shortlisted Candidates", "0", Color.decode("#7c3aed")));
-        counters.add(new StatCard("Interviews Scheduled", "0", Color.decode("#0d0d0d")));
+
+        StatCard activePostsCard = new StatCard("Active Job Postings", String.valueOf(activeCount), Color.decode("#2563eb"));
+        activePostsCard.addActionListener(e -> getDashboard().onMenuClick("Jobs"));
+        counters.add(activePostsCard);
+
+        StatCard totalApplicationsCard = new StatCard("Total Applications", String.valueOf(totalApplicants), Color.decode("#16a34a"));
+        totalApplicationsCard.addActionListener(e -> getDashboard().onMenuClick("Applicants"));
+        counters.add(totalApplicationsCard);
+
+        StatCard shortlistedCard = new StatCard("Shortlisted Candidates", "0", Color.decode("#7c3aed"));
+        shortlistedCard.addActionListener(e -> getDashboard().onMenuClick("Applicants"));
+        counters.add(shortlistedCard);
+
+        StatCard interviewsCard = new StatCard("Interviews Scheduled", String.valueOf(interviewsScheduled), Color.decode("#0d0d0d"));
+        interviewsCard.addActionListener(e -> getDashboard().onMenuClick("Interviews"));
+        counters.add(interviewsCard);
         addBlock(counters, 20);
 
-        // top 3 recent job post
-        SectionPanel jobPostings = new SectionPanel("Your Job Postings", "View All Posting", 3, 72, false);
+
+        int postingSlots = jobs.isEmpty() ? 1 : Math.min(3, jobs.size());
+        SectionPanel jobPostings = new SectionPanel("Your Job Postings (" + jobs.size() + ")", "View All Posting", postingSlots, 72, false);
         jobPostings.getViewAllButton().addActionListener(e -> getDashboard().onMenuClick("Jobs"));
         if (jobs.isEmpty()) {
-            jobPostings.setEmptyState("No job posts yet.");
+            jobPostings.setEmptyState("None");
         } else {
-            for (int i = 0; i < 3 && i < jobs.size(); i++) {
+            for (int i = 0; i < postingSlots; i++) {
                 jobPostings.getBox(i).add(makeJobRow(jobs.get(i)), BorderLayout.CENTER);
             }
         }
@@ -56,13 +70,13 @@ public class EmployerHomePage extends Page implements ActionListener {
         JPanel bottom = new JPanel(new GridLayout(1, 2, 15, 0));
         bottom.setOpaque(false);
 
-        // top 3 recent applicant
-        SectionPanel recentApplicantsPanel = new SectionPanel("Recent Applicants", "View All Applicants", 3, 62, false);
+        int recentSlots = recentApplicants.isEmpty() ? 1 : Math.min(3, recentApplicants.size());
+        SectionPanel recentApplicantsPanel = new SectionPanel("Recent Applicants (" + recentApplicants.size() + ")", "View All Applicants", recentSlots, 62, false);
         recentApplicantsPanel.getViewAllButton().addActionListener(e -> getDashboard().onMenuClick("Applicants"));
         if (recentApplicants.isEmpty()) {
-            recentApplicantsPanel.setEmptyState("No applicants yet.");
+            recentApplicantsPanel.setEmptyState("None");
         } else {
-            for (int i = 0; i < 3 && i < recentApplicants.size(); i++) {
+            for (int i = 0; i < recentSlots; i++) {
                 recentApplicantsPanel.getBox(i).add(makeApplicantRow(recentApplicants.get(i)), BorderLayout.CENTER);
             }
         }
@@ -78,8 +92,13 @@ public class EmployerHomePage extends Page implements ActionListener {
         browseCandidates.addActionListener(e -> getDashboard().onMenuClick("Applicants"));
         quickActions.getBox(1).add(browseCandidates, BorderLayout.CENTER);
 
-        quickActions.getBox(2).add(makeQuickAction("View Analytics", "Track your hiring performance"), BorderLayout.CENTER);
-        quickActions.getBox(3).add(makeQuickAction("Manage Company Profile", "Update your company information"), BorderLayout.CENTER);
+        JButton interviewsAction = makeQuickAction("View Interviews", "Open your scheduled interview calendar");
+        interviewsAction.addActionListener(e -> getDashboard().onMenuClick("Interviews"));
+        quickActions.getBox(2).add(interviewsAction, BorderLayout.CENTER);
+
+        JButton manageProfile = makeQuickAction("Manage Company Profile", "Update your company information");
+        manageProfile.addActionListener(e -> getDashboard().showPage(new CompanyProfilePage(getUser())));
+        quickActions.getBox(3).add(manageProfile, BorderLayout.CENTER);
         bottom.add(quickActions);
 
         addBlock(bottom, 0);

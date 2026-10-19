@@ -5,6 +5,7 @@ import pages.EmployerHomePage;
 import pages.EmployerJobsPage;
 import pages.ApplicantsPage;
 import pages.CompanyProfilePage;
+import pages.InterviewsPage;
 import pages.MessagesPage;
 import pages.NotificationsPage;
 import users.User;
@@ -20,7 +21,7 @@ public class EmployerDashboard extends Dashboard {
     // The sidebar buttons of Employer
     @Override
     public String[] getMenuItems() {
-        return new String[] {"Home", "Jobs", "Applicants", "Messages", "Interviews"};
+        return new String[] {"Home", "Jobs", "Applicants", "Interviews", "Profile", "Messages"};
     }
 
     @Override
@@ -43,6 +44,8 @@ public class EmployerDashboard extends Dashboard {
             showPage(new CompanyProfilePage(getUser()));
         } else if (name.equals("Messages")) {
             showPage(new MessagesPage(getUser()));
+        } else if (name.equals("Interviews")) {
+            showPage(new InterviewsPage(getUser()));
         } else if (name.equals("Notifications")) {
             showPage(new NotificationsPage(getUser()));
         } else {

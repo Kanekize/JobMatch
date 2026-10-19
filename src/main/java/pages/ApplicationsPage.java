@@ -172,31 +172,22 @@ public class ApplicationsPage extends Page {
         statusBox.add(dateLabel);
         statusBox.add(Box.createVerticalGlue());
 
-        JLabel arrow = new JLabel(">");
-        arrow.setFont(new Font("Inter", Font.BOLD, 22));
-        arrow.setForeground(Color.decode("#0d0d0d"));
-
         JPanel right = new JPanel(new BorderLayout(18, 0));
         right.setOpaque(false);
         right.add(statusBox, BorderLayout.CENTER);
-        right.add(arrow, BorderLayout.EAST);
         card.add(right, BorderLayout.EAST);
 
         card.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                showDetails(app);
+                openJobPage();
             }
         });
         return card;
     }
 
-    // TODO: palitan ng actual details page
-    private void showDetails(JobApplication app) {
-        JOptionPane.showMessageDialog(this,
-                app.getJobTitle() + "\n" + app.getCompany() + " - " + app.getLocation()
-                        + "\n\nStatus: " + app.getStatus() + "\n" + app.getDateText(),
-                "Application Details", JOptionPane.PLAIN_MESSAGE);
+    private void openJobPage() {
+        getDashboard().showPage(new JobSeekerJobsPage(getUser(), null));
     }
 
     private Color statusBackground(String status) {

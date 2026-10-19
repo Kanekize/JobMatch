@@ -8,12 +8,15 @@ import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.io.File;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class CompanyProfilePage extends Page {
 
     private String companyName;
     private String companyLogoPath;
     private String companyAbout;
+    private Map<String, String> extraDetails = new LinkedHashMap<>();
 
     public CompanyProfilePage(User user) {
         super(user);
@@ -25,9 +28,9 @@ public class CompanyProfilePage extends Page {
         loadProfile();
 
         addBlock(makeHeading("Company Profile",
-                "Manage your company branding and the logo used on new job posts.", null), 15);
+                "Manage your company profile details and profile image.", null), 15);
         addBlock(makeOverviewCard(), 15);
-        addBlock(makeBrandingCard(), 0);
+        addBlock(makeCompanyDetailsCard(), 15);
 
         content.revalidate();
         content.repaint();
@@ -37,6 +40,7 @@ public class CompanyProfilePage extends Page {
         companyName = Database.getEmployerCompanyName(getUser().getEmail());
         companyLogoPath = Database.getEmployerCompanyLogoPath(getUser().getEmail());
         companyAbout = Database.getEmployerCompanyAbout(getUser().getEmail());
+        extraDetails = Database.getProfileDetails(getUser().getEmail());
     }
 
     private JPanel makeOverviewCard() {
@@ -60,6 +64,10 @@ public class CompanyProfilePage extends Page {
         email.setFont(new Font("Inter", Font.PLAIN, 13));
         email.setForeground(Color.decode("#6b7280"));
 
+        JLabel contact = new JLabel(composeContactLine());
+        contact.setFont(new Font("Inter", Font.PLAIN, 12));
+        contact.setForeground(Color.decode("#4b5563"));
+
         JTextArea about = new JTextArea(companyAbout == null || companyAbout.isBlank()
                 ? "Tell job seekers what makes your company a great place to work."
                 : companyAbout);
@@ -77,6 +85,8 @@ public class CompanyProfilePage extends Page {
         center.add(title);
         center.add(Box.createVerticalStrut(4));
         center.add(email);
+        center.add(Box.createVerticalStrut(2));
+        center.add(contact);
         center.add(Box.createVerticalStrut(8));
         center.add(about);
         center.add(Box.createVerticalGlue());
@@ -100,7 +110,7 @@ public class CompanyProfilePage extends Page {
         return card;
     }
 
-    private JPanel makeBrandingCard() {
+    private JPanel makeCompanyDetailsCard() {
         JPanel card = new JPanel();
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
         card.setBackground(Color.WHITE);
@@ -108,21 +118,37 @@ public class CompanyProfilePage extends Page {
                 new RoundedLineBorder(Color.decode("#d7dce3"), 12, 1),
                 BorderFactory.createEmptyBorder(16, 18, 16, 18)));
 
-        JLabel title = new JLabel("Branding");
+        JLabel title = new JLabel("Company Details");
         title.setFont(new Font("Inter", Font.BOLD, 15));
         title.setForeground(Color.decode("#0d0d0d"));
         title.setAlignmentX(Component.LEFT_ALIGNMENT);
         card.add(title);
-        card.add(Box.createVerticalStrut(8));
+        card.add(Box.createVerticalStrut(10));
 
-        JLabel note = new JLabel("This logo is used automatically on new job posts.");
-        note.setFont(new Font("Inter", Font.PLAIN, 13));
-        note.setForeground(Color.decode("#6b7280"));
-        note.setAlignmentX(Component.LEFT_ALIGNMENT);
-        card.add(note);
+        String[][] rows = {
+                {"Industry", getDetail("companyIndustry")},
+                {"Company Size", getDetail("companySize")},
+                {"Website", getDetail("companyWebsite")},
+                {"Phone", getDetail("companyPhone")},
+                {"Location", getDetail("companyLocation")}
+        };
 
-        card.add(Box.createVerticalStrut(12));
-        card.add(makeLogoPreview(84));
+        for (String[] row : rows) {
+            JPanel line = new JPanel(new BorderLayout(8, 0));
+            line.setOpaque(false);
+            JLabel key = new JLabel(row[0]);
+            key.setFont(new Font("Inter", Font.BOLD, 12));
+            key.setForeground(Color.decode("#4b5563"));
+            JLabel value = new JLabel(row[1].isBlank() ? "Not set" : row[1]);
+            value.setFont(new Font("Inter", Font.PLAIN, 12));
+            value.setForeground(row[1].isBlank() ? Color.decode("#9ca3af") : Color.decode("#111827"));
+            line.add(key, BorderLayout.WEST);
+            line.add(value, BorderLayout.CENTER);
+            line.setAlignmentX(Component.LEFT_ALIGNMENT);
+            card.add(line);
+            card.add(Box.createVerticalStrut(7));
+        }
+
         return card;
     }
 
@@ -158,10 +184,20 @@ public class CompanyProfilePage extends Page {
     private void editDetails() {
         JTextField companyField = new JTextField(companyName == null ? "" : companyName, 28);
         JTextArea aboutField = new JTextArea(companyAbout == null ? "" : companyAbout, 6, 28);
+        JTextField industryField = new JTextField(getDetail("companyIndustry"), 28);
+        JTextField sizeField = new JTextField(getDetail("companySize"), 28);
+        JTextField websiteField = new JTextField(getDetail("companyWebsite"), 28);
+        JTextField phoneField = new JTextField(getDetail("companyPhone"), 28);
+        JTextField locationField = new JTextField(getDetail("companyLocation"), 28);
         aboutField.setLineWrap(true);
         aboutField.setWrapStyleWord(true);
 
         if (showForm("Edit Company Profile", "Company Name", companyField,
+                "Industry", industryField,
+                "Company Size", sizeField,
+                "Website", websiteField,
+                "Phone", phoneField,
+                "Location", locationField,
                 "About the Company", new JScrollPane(aboutField))) {
             String newName = companyField.getText().trim();
             if (newName.isEmpty()) {
@@ -171,6 +207,13 @@ public class CompanyProfilePage extends Page {
             companyName = newName;
             companyAbout = aboutField.getText().trim();
             Database.updateEmployerProfile(getUser().getEmail(), companyName, companyLogoPath, companyAbout);
+            Map<String, String> details = new LinkedHashMap<>();
+            details.put("companyIndustry", industryField.getText().trim());
+            details.put("companySize", sizeField.getText().trim());
+            details.put("companyWebsite", websiteField.getText().trim());
+            details.put("companyPhone", phoneField.getText().trim());
+            details.put("companyLocation", locationField.getText().trim());
+            Database.saveProfileDetails(getUser().getEmail(), details);
             build();
         }
     }
@@ -231,5 +274,28 @@ public class CompanyProfilePage extends Page {
 
         return JOptionPane.showConfirmDialog(this, form, title,
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) == JOptionPane.OK_OPTION;
+    }
+
+    private String getDetail(String key) {
+        if (extraDetails == null) return "";
+        return extraDetails.getOrDefault(key, "");
+    }
+
+    private String composeContactLine() {
+        StringBuilder sb = new StringBuilder();
+        String website = getDetail("companyWebsite");
+        String phone = getDetail("companyPhone");
+        String location = getDetail("companyLocation");
+
+        if (!website.isBlank()) sb.append(website);
+        if (!phone.isBlank()) {
+            if (sb.length() > 0) sb.append("  •  ");
+            sb.append(phone);
+        }
+        if (!location.isBlank()) {
+            if (sb.length() > 0) sb.append("  •  ");
+            sb.append(location);
+        }
+        return sb.length() == 0 ? "Add website, phone, and location details." : sb.toString();
     }
 }

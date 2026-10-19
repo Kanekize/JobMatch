@@ -7,7 +7,6 @@ import users.User;
 
 import javax.swing.*;
 import java.awt.*;
-//job seeker view job
 public class JobDetailsPage extends Page {
 
     public JobDetailsPage(User user, Job job) {
@@ -50,6 +49,11 @@ public class JobDetailsPage extends Page {
         infoLabel.setFont(new Font("Inter", Font.PLAIN, 14));
         infoLabel.setForeground(Color.decode("#4b5563"));
         infoLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel salaryTopLabel = new JLabel(job.getSalaryText() + " per month");
+        salaryTopLabel.setFont(new Font("Inter", Font.BOLD, 15));
+        salaryTopLabel.setForeground(Color.decode("#1f2937"));
+        salaryTopLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         String date = job.getCreatedAt() == null ? "" : job.getCreatedAt().split(" ")[0];
         JLabel dateLabel = new JLabel("Posted on " + date);
@@ -104,6 +108,8 @@ public class JobDetailsPage extends Page {
 
         info.add(titleLabel);
         info.add(Box.createVerticalStrut(4));
+        info.add(salaryTopLabel);
+        info.add(Box.createVerticalStrut(4));
         info.add(infoLabel);
         info.add(Box.createVerticalStrut(4));
         info.add(dateLabel);
@@ -112,45 +118,59 @@ public class JobDetailsPage extends Page {
         header.add(info, BorderLayout.CENTER);
 
         JButton applyBtn = new JButton("Apply Now");
-        applyBtn.setBackground(Color.decode("#2563eb"));
-        applyBtn.setForeground(Color.WHITE);
         applyBtn.setFont(new Font("Inter", Font.BOLD, 14));
-        applyBtn.setPreferredSize(new Dimension(130, 40));
-        applyBtn.setBorderPainted(false);
+        Dimension applyButtonSize = new Dimension(130, 40);
+        applyBtn.setPreferredSize(applyButtonSize);
+        applyBtn.setMinimumSize(applyButtonSize);
+        applyBtn.setMaximumSize(applyButtonSize);
+        applyBtn.setBorder(new RoundedLineBorder(Color.decode("#2563eb"), 10, 1));
         applyBtn.setOpaque(true);
         applyBtn.setFocusable(false);
         applyBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         boolean alreadyApplied = Database.hasApplied(getUser().getEmail(), job.getId());
-        applyBtn.setText(alreadyApplied ? "Applied" : "Apply Now");
-        applyBtn.setEnabled(!alreadyApplied);
+        setApplyButtonState(applyBtn, alreadyApplied);
         applyBtn.addActionListener(e -> {
             if (Database.applyToJob(getUser().getEmail(), job.getId())) {
                 JOptionPane.showMessageDialog(this, "Your application has been submitted successfully.", "Application Submitted", JOptionPane.INFORMATION_MESSAGE);
-                applyBtn.setText("Applied");
-                applyBtn.setEnabled(false);
+                setApplyButtonState(applyBtn, true);
             } else if (Database.hasApplied(getUser().getEmail(), job.getId())) {
                 JOptionPane.showMessageDialog(this, "You have already applied for this job.");
-                applyBtn.setText("Applied"); applyBtn.setEnabled(false);
+                setApplyButtonState(applyBtn, true);
             } else {
                 JOptionPane.showMessageDialog(this, "Could not submit your application. Please try again.", "Application Error", JOptionPane.ERROR_MESSAGE);
             }
         });
-        header.add(applyBtn, BorderLayout.EAST);
+        JButton saveBtn = new JButton("Save Job");
+        saveBtn.setFont(new Font("Inter", Font.BOLD, 13));
+        Dimension saveButtonSize = new Dimension(130, 40);
+        saveBtn.setPreferredSize(saveButtonSize);
+        saveBtn.setMinimumSize(saveButtonSize);
+        saveBtn.setMaximumSize(saveButtonSize);
+        saveBtn.setFocusable(false);
+        saveBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        saveBtn.setIconTextGap(8);
+        boolean saved = Database.isFavoriteForSeeker(getUser().getEmail(), job.getId());
+        setSaveJobButtonState(saveBtn, saved);
+        saveBtn.addActionListener(e -> {
+            Database.toggleFavoriteForSeeker(getUser().getEmail(), job.getId());
+            setSaveJobButtonState(saveBtn, Database.isFavoriteForSeeker(getUser().getEmail(), job.getId()));
+        });
+
+        JPanel applyWrap = new JPanel();
+        applyWrap.setOpaque(false);
+        applyWrap.setLayout(new BoxLayout(applyWrap, BoxLayout.Y_AXIS));
+        applyBtn.setAlignmentX(Component.RIGHT_ALIGNMENT);
+        saveBtn.setAlignmentX(Component.RIGHT_ALIGNMENT);
+        applyWrap.add(applyBtn);
+        applyWrap.add(Box.createVerticalStrut(8));
+        applyWrap.add(saveBtn);
+        header.add(applyWrap, BorderLayout.EAST);
 
         addBlock(header, 20);
 
         addBlock(makeSection("About the Job", job.getDescription()), 15);
 
         addBlock(makeDetailsBox(job), 15);
-
-        addBlock(makeSection("Required Skills", job.getSkillsText()), 15);
-
-        if (job.isAccommodationsAvailable()) {
-            addBlock(makeSection("Workplace Accommodations",
-                    String.join(", ", job.getAccommodations())), 15);
-        }
-
-        addBlock(makeSection("Who Can Apply", String.join(", ", job.getApplicantTypes())), 0);
     }
 
 
@@ -200,15 +220,13 @@ public class JobDetailsPage extends Page {
         panel.add(titleLabel);
         panel.add(Box.createVerticalStrut(10));
 
-        panel.add(detailRow("Salary", job.getSalaryText() + " per month"));
         panel.add(detailRow("Category", job.getCategory()));
-        panel.add(detailRow("Job Type", job.getJobType()));
-        panel.add(detailRow("Workplace Type", job.getWorkplaceType()));
-        panel.add(detailRow("Location", job.getCity() + ", " + job.getLocation()));
         panel.add(detailRow("Experience Required",
                 job.isExperienceRequired() ? "Yes (" + job.getExperienceLength() + ")" : "No"));
-        panel.add(detailRow("Workplace Accommodations",
-                job.isAccommodationsAvailable() ? "Yes" : "No"));
+        panel.add(detailTextRow("Who Can Apply", String.join(", ", job.getApplicantTypes())));
+        panel.add(detailTextRow("Required Skills", job.getSkillsText()));
+        panel.add(detailTextRow("Workplace Accommodations",
+                job.isAccommodationsAvailable() ? String.join(", ", job.getAccommodations()) : "None"));
 
         return panel;
     }
@@ -231,5 +249,71 @@ public class JobDetailsPage extends Page {
         row.add(labelL, BorderLayout.WEST);
         row.add(valueL, BorderLayout.CENTER);
         return row;
+    }
+
+    private JPanel detailTextRow(String label, String value) {
+        JPanel row = new JPanel(new BorderLayout(0, 4));
+        row.setOpaque(false);
+        row.setAlignmentX(Component.LEFT_ALIGNMENT);
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
+        row.setBorder(BorderFactory.createEmptyBorder(4, 0, 4, 0));
+
+        JLabel labelL = new JLabel(label);
+        labelL.setFont(new Font("Inter", Font.BOLD, 13));
+        labelL.setForeground(Color.decode("#0d0d0d"));
+
+        JTextArea valueA = new JTextArea(value);
+        valueA.setFont(new Font("Inter", Font.PLAIN, 13));
+        valueA.setForeground(Color.decode("#4b5563"));
+        valueA.setLineWrap(true);
+        valueA.setWrapStyleWord(true);
+        valueA.setEditable(false);
+        valueA.setFocusable(false);
+        valueA.setOpaque(false);
+
+        row.add(labelL, BorderLayout.NORTH);
+        row.add(valueA, BorderLayout.CENTER);
+        return row;
+    }
+
+    private void setApplyButtonState(JButton button, boolean applied) {
+        if (applied) {
+            button.setText("Applied");
+            button.setEnabled(true);
+            button.setBackground(Color.decode("#e1efff"));
+            button.setForeground(Color.decode("#2563eb"));
+            button.setBorder(new RoundedLineBorder(Color.decode("#bfdbfe"), 10, 1));
+        } else {
+            button.setText("Apply Now");
+            button.setEnabled(true);
+            button.setBackground(Color.decode("#2563eb"));
+            button.setForeground(Color.WHITE);
+            button.setBorder(new RoundedLineBorder(Color.decode("#2563eb"), 10, 1));
+        }
+    }
+
+    private void setSaveJobButtonState(JButton button, boolean saved) {
+        ImageIcon icon = loadIcon(saved ? "bookmark-active.png" : "bookmark-off.png", 15, 15);
+        button.setIcon(icon);
+        if (saved) {
+            button.setText("Saved");
+            button.setBackground(Color.decode("#e1efff"));
+            button.setForeground(Color.decode("#2563eb"));
+            button.setBorder(new RoundedLineBorder(Color.decode("#bfdbfe"), 10, 1));
+        } else {
+            button.setText("Save Job");
+            button.setBackground(Color.WHITE);
+            button.setForeground(Color.decode("#2563eb"));
+            button.setBorder(new RoundedLineBorder(Color.decode("#d7dce3"), 10, 1));
+        }
+        button.setOpaque(true);
+    }
+
+    private ImageIcon loadIcon(String fileName, int width, int height) {
+        java.io.File file = new java.io.File("src/images/" + fileName);
+        if (!file.exists()) file = new java.io.File("JobMatch/src/images/" + fileName);
+        if (!file.exists()) return null;
+        Image image = new ImageIcon(file.getPath()).getImage().getScaledInstance(width, height, Image.SCALE_SMOOTH);
+        return new ImageIcon(image);
     }
 }

@@ -43,6 +43,8 @@ public class JobSeekerDashboard extends Dashboard {
             showPage(new NotificationsPage(getUser()));
         } else if (name.equals("Assessment")) {
             showPage(new AssessmentPage(getUser()));
+        } else if (name.equals("Interviews")) {
+            showPage(new InterviewsPage(getUser()));
         } else {
             System.out.println("Job Seeker clicked unhandled menu item: " + name);
             showPage(new JobSeekerHomePage(getUser()));

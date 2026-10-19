@@ -12,10 +12,15 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.List;
 
 // view applicants sa specific post (not the general view applicant)
 public class ViewApplicantsPage extends Page {
+    private static final DateTimeFormatter INTERVIEW_INPUT_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private Job job;
     private JTextField searchField;
@@ -228,14 +233,7 @@ public class ViewApplicantsPage extends Page {
 
         JButton scheduleBtn = makePlainButton("Schedule Interview");
         scheduleBtn.addActionListener(e -> {
-            //TODO: after mong matapos ung interview schedule go to that page
-            try {
-                Database.updateApplicantStatus(applicant.getId(), "Interview");
-                database.ApplicantRepository.updateStatus(applicant.getId(), job.getEmployerEmail(), "Interview Scheduled");
-                refresh();
-            } catch (java.sql.SQLException ex) {
-                System.err.println("Database error scheduling interview: " + ex.getMessage());
-            }
+            scheduleInterview(applicant);
         });
 
         JButton acceptBtn = new JButton("Accept");
@@ -345,12 +343,146 @@ public class ViewApplicantsPage extends Page {
     }
 
     private void styleActionButton(JButton btn) {
-        btn.setBorderPainted(false);
+        btn.setBorderPainted(true);
+        btn.setContentAreaFilled(true);
         btn.setOpaque(true);
         btn.setFocusable(false);
+        btn.setFocusPainted(false);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btn.setBorder(BorderFactory.createCompoundBorder(
-                new RoundedLineBorder(btn.getBackground(), 10, 1),
-                BorderFactory.createEmptyBorder(5, 12, 5, 12)));
+                new RoundedLineBorder(btn.getBackground(), 12, 1),
+                BorderFactory.createEmptyBorder(6, 14, 6, 14)));
+    }
+
+    private void scheduleInterview(Applicant applicant) {
+        if (applicant.getEmail() == null || applicant.getEmail().isBlank()) {
+            JOptionPane.showMessageDialog(this,
+                    "Cannot schedule interview because this applicant has no email.",
+                    "Schedule Interview", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Date initialDate = Date.from(LocalDateTime.now().plusDays(1).withMinute(0).withSecond(0).withNano(0)
+                .atZone(ZoneId.systemDefault()).toInstant());
+        JSpinner dateTimeSpinner = new JSpinner(
+                new SpinnerDateModel(initialDate, null, null, java.util.Calendar.MINUTE));
+        JSpinner.DateEditor editor = new JSpinner.DateEditor(dateTimeSpinner, "yyyy-MM-dd HH:mm");
+        dateTimeSpinner.setEditor(editor);
+        ((JSpinner.DefaultEditor) dateTimeSpinner.getEditor()).getTextField().setColumns(16);
+
+        JTextField locationField = new JTextField("Company Office");
+        JComboBox<String> modeBox = new JComboBox<>(new String[]{"On-site", "Online", "Phone"});
+        JTextField linkField = new JTextField();
+        JTextArea notesArea = new JTextArea(4, 22);
+        notesArea.setLineWrap(true);
+        notesArea.setWrapStyleWord(true);
+        notesArea.setBorder(BorderFactory.createLineBorder(Color.decode("#e5e7eb")));
+
+        JPanel form = new JPanel(new GridBagLayout());
+        form.setOpaque(false);
+        GridBagConstraints c = new GridBagConstraints();
+        c.gridx = 0;
+        c.gridy = 0;
+        c.anchor = GridBagConstraints.WEST;
+        c.insets = new Insets(0, 0, 6, 10);
+        form.add(new JLabel("Date & Time:"), c);
+        c.gridy++;
+        form.add(new JLabel("Interview Location:"), c);
+        c.gridy++;
+        form.add(new JLabel("Interview Mode:"), c);
+        c.gridy++;
+        form.add(new JLabel("Online Meeting Link:"), c);
+        c.gridy++;
+        c.anchor = GridBagConstraints.NORTHWEST;
+        form.add(new JLabel("Notes:"), c);
+
+        c.gridx = 1;
+        c.gridy = 0;
+        c.weightx = 1.0;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.insets = new Insets(0, 0, 6, 0);
+        form.add(dateTimeSpinner, c);
+        c.gridy++;
+        form.add(locationField, c);
+        c.gridy++;
+        form.add(modeBox, c);
+        c.gridy++;
+        form.add(linkField, c);
+        c.gridy++;
+        c.weighty = 1.0;
+        c.fill = GridBagConstraints.BOTH;
+        JScrollPane notesScroll = new JScrollPane(notesArea);
+        notesScroll.setPreferredSize(new Dimension(260, 90));
+        form.add(notesScroll, c);
+
+        Runnable syncModeFields = () -> {
+            boolean isOnline = "Online".equals(String.valueOf(modeBox.getSelectedItem()));
+            linkField.setEnabled(isOnline);
+            if (isOnline) {
+                locationField.setText("Online");
+                locationField.setEnabled(false);
+            } else {
+                if ("Online".equalsIgnoreCase(locationField.getText().trim())) {
+                    locationField.setText("Company Office");
+                }
+                locationField.setEnabled(true);
+            }
+        };
+        modeBox.addActionListener(e -> syncModeFields.run());
+        syncModeFields.run();
+
+        int answer = JOptionPane.showConfirmDialog(
+                this, form, "Schedule Interview for " + applicant.getName(),
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (answer != JOptionPane.OK_OPTION) return;
+
+        Date selectedDate = (Date) dateTimeSpinner.getValue();
+        LocalDateTime scheduledAt = LocalDateTime.ofInstant(selectedDate.toInstant(), ZoneId.systemDefault());
+
+        String interviewMode = String.valueOf(modeBox.getSelectedItem());
+        String interviewLocation = locationField.getText().trim();
+        if ("Online".equals(interviewMode)) {
+            String link = linkField.getText().trim();
+            if (link.isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "Please provide the online meeting link.",
+                        "Schedule Interview", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            interviewLocation = link;
+        } else if (interviewLocation.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Interview location is required.",
+                    "Schedule Interview", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String notes = notesArea.getText().trim();
+
+        if (!Database.saveInterviewSchedule(
+                applicant.getId(), job.getId(), applicant.getEmail(), job.getEmployerEmail(),
+                scheduledAt, interviewLocation, interviewMode, notes)) {
+            JOptionPane.showMessageDialog(this,
+                    "Could not save interview schedule. Please try again.",
+                    "Schedule Interview", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        try {
+            Database.updateApplicantStatus(applicant.getId(), "Interview");
+            database.ApplicantRepository.updateStatus(applicant.getId(), job.getEmployerEmail(), "Interview Scheduled");
+            String meetingFieldLabel = "Online".equals(interviewMode) ? "Link" : "Location";
+            String messageBody = "Your interview is scheduled for " +
+                    scheduledAt.format(INTERVIEW_INPUT_FORMAT) + ".\nMode: " + interviewMode +
+                    "\n" + meetingFieldLabel + ": " + interviewLocation +
+                    (notes.isEmpty() ? "" : "\nNotes: " + notes);
+            database.MessageRepository.sendMessage(job.getEmployerEmail(), applicant.getEmail(), messageBody);
+            refresh();
+        } catch (SQLException ex) {
+            System.err.println("Database error scheduling interview: " + ex.getMessage());
+            JOptionPane.showMessageDialog(this,
+                    "Interview saved, but status/message update failed.",
+                    "Schedule Interview", JOptionPane.WARNING_MESSAGE);
+        }
     }
 }

@@ -17,7 +17,7 @@ import javax.swing.text.StyleConstants;
 
 public class Frame extends JFrame implements ActionListener, KeyListener {
     Image scaled;
-    JButton jobSeekerBtn, hiringBtn, loginBtn, closeLoginBtn, registerBtn , closeRegisterBtn, goToRegisterBtn, goToForgotBtn, backToLoginBtn, forgotBtn, closeForgotBtn, backToLoginFromForgotBtn, signInLinkBtn, switchTypeBtn, changeTypeBtn;
+    JButton jobSeekerBtn, hiringBtn, loginBtn, closeLoginBtn, registerBtn , closeRegisterBtn, goToRegisterBtn, goToForgotBtn, backToLoginBtn, forgotBtn, closeForgotBtn, backToLoginFromForgotBtn, signInLinkBtn, switchTypeBtn, changeTypeBtn, termsLinkBtn, privacyPolicyLinkBtn;
     JPanel centerWrapper;
 
     JPanel invinciblePanel, jobSeekerPanel, hiringPanel, registerPanel, loginPanel, forgotPanel;
@@ -74,6 +74,59 @@ public class Frame extends JFrame implements ActionListener, KeyListener {
         return BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Color.decode("#cbd5e1"), 1),
                 BorderFactory.createEmptyBorder(0, 12, 0, 12)
+        );
+    }
+
+    private JButton createInlineLinkButton(String text) {
+        JButton button = new JButton("<html><u>" + text + "</u></html>");
+        button.setFont(new Font("Inter", Font.PLAIN, 14));
+        button.setForeground(Color.decode("#2563eb"));
+        button.setBorderPainted(false);
+        button.setContentAreaFilled(false);
+        button.setFocusable(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        button.setMargin(new Insets(0, 0, 0, 0));
+        return button;
+    }
+
+    private void showPolicyDialog(String title, String content) {
+        JTextArea textArea = new JTextArea(content);
+        textArea.setEditable(false);
+        textArea.setLineWrap(true);
+        textArea.setWrapStyleWord(true);
+        textArea.setFont(new Font("Inter", Font.PLAIN, 14));
+        textArea.setCaretPosition(0);
+        textArea.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+
+        JScrollPane scrollPane = new JScrollPane(textArea);
+        scrollPane.setPreferredSize(new Dimension(560, 360));
+
+        JOptionPane.showMessageDialog(this, scrollPane, title, JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void showTermsOfServiceDialog() {
+        showPolicyDialog(
+                "Terms of Service",
+                "JobMatch Terms of Service\n\n" +
+                        "1. Use JobMatch only for lawful recruitment and job-search activities.\n" +
+                        "2. Provide accurate account information and keep your credentials secure.\n" +
+                        "3. Do not post misleading, discriminatory, or harmful content.\n" +
+                        "4. You are responsible for all activity under your account.\n" +
+                        "5. JobMatch may suspend accounts that violate these terms.\n\n" +
+                        "By creating an account, you agree to follow these terms."
+        );
+    }
+
+    private void showPrivacyPolicyDialog() {
+        showPolicyDialog(
+                "Privacy Policy",
+                "JobMatch Privacy Policy\n\n" +
+                        "1. We collect profile, account, and usage information to provide the service.\n" +
+                        "2. Your data is used for authentication, matching, and communication features.\n" +
+                        "3. We do not sell your personal information to third parties.\n" +
+                        "4. Data may be shared only when required for platform operations or by law.\n" +
+                        "5. You can request account updates or deletion through support.\n\n" +
+                        "By creating an account, you acknowledge this privacy policy."
         );
     }
 
@@ -847,13 +900,31 @@ public class Frame extends JFrame implements ActionListener, KeyListener {
         confirmInputRegister.setBounds(formX, formY + titleShift + 346 + extra, formWidth, 38);
         rightPanel.add(confirmInputRegister);
 
-        termsCheck = new JCheckBox("I agree to the Terms and Privacy Policy");
+        JPanel termsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        termsPanel.setOpaque(false);
+        termsPanel.setBounds(formX, formY + titleShift + 398 + extra, formWidth, 25);
+
+        termsCheck = new JCheckBox("I agree to the ");
         termsCheck.setFont(new Font("Inter", Font.PLAIN, 14));
         termsCheck.setForeground(Color.decode("#3f3f46"));
         termsCheck.setBackground(Color.decode("#F7FAFD"));
         termsCheck.setFocusable(false);
-        termsCheck.setBounds(formX, formY + titleShift + 398 + extra, formWidth, 25);
-        rightPanel.add(termsCheck);
+        termsCheck.setMargin(new Insets(0, 0, 0, 0));
+        termsPanel.add(termsCheck);
+
+        termsLinkBtn = createInlineLinkButton("Terms");
+        termsLinkBtn.addActionListener(this);
+        termsPanel.add(termsLinkBtn);
+
+        JLabel andLabel = new JLabel(" and ");
+        andLabel.setFont(new Font("Inter", Font.PLAIN, 14));
+        andLabel.setForeground(Color.decode("#3f3f46"));
+        termsPanel.add(andLabel);
+
+        privacyPolicyLinkBtn = createInlineLinkButton("Privacy Policy");
+        privacyPolicyLinkBtn.addActionListener(this);
+        termsPanel.add(privacyPolicyLinkBtn);
+        rightPanel.add(termsPanel);
 
         registerBtn = new RoundedButton("Create Account");
         registerBtn.setBackground(Color.decode("#1A5DE3"));
@@ -1122,6 +1193,12 @@ public class Frame extends JFrame implements ActionListener, KeyListener {
 
         } else if (e.getSource() == registerBtn) {
             registerUser();
+
+        } else if (e.getSource() == termsLinkBtn) {
+            showTermsOfServiceDialog();
+
+        } else if (e.getSource() == privacyPolicyLinkBtn) {
+            showPrivacyPolicyDialog();
 
         } else if (e.getSource() == closeForgotBtn) {
             goHome(forgotPanel);

@@ -1,6 +1,7 @@
 package database;
 
 import models.Applicant;
+import models.InterviewSchedule;
 import models.Job;
 import users.Employer;
 import users.JobSeeker;
@@ -13,6 +14,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -23,6 +26,7 @@ public class Database {
     private static final String DB_FOLDER = "data";
     private static final String DB_FILE = "data/jobMatch.db";
     private static final String DB_URL = "jdbc:sqlite:" + DB_FILE;
+    private static final DateTimeFormatter DB_DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     public static void main(String[] args) {
         new File(DB_FOLDER).mkdirs();
@@ -133,6 +137,22 @@ public class Database {
                 "UNIQUE(job_id, seeker_email))";
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(applicationsTable);
+        }
+
+        String interviewSchedulesTable = "CREATE TABLE IF NOT EXISTS interview_schedules (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "applicant_id INTEGER NOT NULL UNIQUE, " +
+                "job_id INTEGER NOT NULL, " +
+                "seeker_email TEXT NOT NULL, " +
+                "employer_email TEXT NOT NULL, " +
+                "scheduled_at TEXT NOT NULL, " +
+                "interview_location TEXT, " +
+                "interview_mode TEXT, " +
+                "notes TEXT, " +
+                "created_at TEXT DEFAULT CURRENT_TIMESTAMP, " +
+                "updated_at TEXT DEFAULT CURRENT_TIMESTAMP)";
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(interviewSchedulesTable);
         }
 
         String submissionsTable = "CREATE TABLE IF NOT EXISTS assessment_submissions (" +
@@ -349,8 +369,8 @@ public class Database {
             ps.setString(2, job.getCategory());
             ps.setString(3, job.getJobType());
             ps.setString(4, job.getWorkplaceType());
-            ps.setInt(5, job.getSalaryMin());
-            ps.setInt(6, job.getSalaryMax());
+            ps.setInt(5, job.getSalary());
+            ps.setInt(6, job.getSalary());
             ps.setString(7, job.getDescription());
             ps.setString(8, String.join(";", job.getSkills()));
             ps.setInt(9, job.isAccommodationsAvailable() ? 1 : 0);
@@ -375,8 +395,8 @@ public class Database {
         ps.setString(3, job.getCategory());
         ps.setString(4, job.getJobType());
         ps.setString(5, job.getWorkplaceType());
-        ps.setInt(6, job.getSalaryMin());
-        ps.setInt(7, job.getSalaryMax());
+        ps.setInt(6, job.getSalary());
+        ps.setInt(7, job.getSalary());
         ps.setString(8, job.getDescription());
         ps.setString(9, String.join(";", job.getSkills()));
         ps.setInt(10, job.isAccommodationsAvailable() ? 1 : 0);
@@ -514,8 +534,9 @@ public class Database {
         job.setCategory(rs.getString("category"));
         job.setJobType(rs.getString("job_type"));
         job.setWorkplaceType(rs.getString("workplace_type"));
-        job.setSalaryMin(rs.getInt("salary_min"));
-        job.setSalaryMax(rs.getInt("salary_max"));
+        int salaryMin = rs.getInt("salary_min");
+        int salaryMax = rs.getInt("salary_max");
+        job.setSalary(salaryMin > 0 ? salaryMin : salaryMax);
         job.setDescription(rs.getString("description"));
         job.setSkills(splitText(rs.getString("skills")));
         job.setAccommodationsAvailable(rs.getInt("accommodations_available") == 1);
@@ -579,9 +600,10 @@ public class Database {
     public static List<models.JobApplication> getApplicationsForSeeker(String seekerEmail) {
         List<models.JobApplication> list = new ArrayList<>();
         String sql = "SELECT j.title, j.employer_email, COALESCE(j.location,''), COALESCE(j.city,''), " +
-                "COALESCE(ap.status, a.status), a.applied_at, COALESCE(j.logo_path,'') " +
+                "COALESCE(ap.status, a.status), a.applied_at, COALESCE(j.logo_path,''), COALESCE(i.scheduled_at,'') " +
                 "FROM job_applications a JOIN jobs j ON j.id=a.job_id " +
                 "LEFT JOIN applicants ap ON ap.job_id=j.id AND LOWER(ap.details)=LOWER(a.seeker_email) " +
+                "LEFT JOIN interview_schedules i ON i.job_id=a.job_id AND LOWER(i.seeker_email)=LOWER(a.seeker_email) " +
                 "WHERE LOWER(a.seeker_email)=LOWER(?) ORDER BY a.applied_at DESC";
         try (Connection conn = DriverManager.getConnection(DB_URL);
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -589,10 +611,17 @@ public class Database {
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     String location = rs.getString(4).isEmpty() ? rs.getString(3) : rs.getString(4) + ", " + rs.getString(3);
+                    String normalizedStatus = normalizeApplicationStatus(rs.getString(5));
                     String applied = rs.getString(6);
-                    String dateText = "Applied on " + (applied == null ? "" : applied);
-                    models.JobApplication app = new models.JobApplication(rs.getString(1), rs.getString(2), location,
-                            normalizeApplicationStatus(rs.getString(5)), dateText);
+                    String scheduledAt = rs.getString(8);
+                    String dateText;
+                    if ("Interview".equals(normalizedStatus) && scheduledAt != null && !scheduledAt.isBlank()) {
+                        dateText = "Scheduled on " + scheduledAt;
+                    } else {
+                        dateText = "Applied on " + (applied == null ? "" : applied);
+                    }
+                    models.JobApplication app = new models.JobApplication(
+                            rs.getString(1), rs.getString(2), location, normalizedStatus, dateText);
                     app.setLogoPath(rs.getString(7));
                     list.add(app);
                 }
@@ -739,6 +768,116 @@ public class Database {
         }
     }
 
+    public static boolean saveInterviewSchedule(int applicantId, int jobId, String seekerEmail, String employerEmail,
+                                                LocalDateTime scheduledAt, String interviewLocation,
+                                                String interviewMode, String notes) {
+        String sql = "INSERT INTO interview_schedules " +
+                "(applicant_id, job_id, seeker_email, employer_email, scheduled_at, interview_location, interview_mode, notes, updated_at) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) " +
+                "ON CONFLICT(applicant_id) DO UPDATE SET " +
+                "job_id=excluded.job_id, seeker_email=excluded.seeker_email, employer_email=excluded.employer_email, " +
+                "scheduled_at=excluded.scheduled_at, interview_location=excluded.interview_location, " +
+                "interview_mode=excluded.interview_mode, notes=excluded.notes, updated_at=CURRENT_TIMESTAMP";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, applicantId);
+            ps.setInt(2, jobId);
+            ps.setString(3, seekerEmail.toLowerCase());
+            ps.setString(4, employerEmail.toLowerCase());
+            ps.setString(5, scheduledAt.format(DB_DATE_TIME));
+            ps.setString(6, interviewLocation);
+            ps.setString(7, interviewMode);
+            ps.setString(8, notes);
+            ps.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            System.err.println("Interview schedule save error: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public static List<InterviewSchedule> getInterviewSchedulesForSeeker(String seekerEmail) {
+        List<InterviewSchedule> schedules = new ArrayList<>();
+        String sql = "SELECT j.title, COALESCE(u.company_name, j.employer_email), " +
+                "COALESCE(j.city,''), COALESCE(j.location,''), i.scheduled_at, " +
+                "COALESCE(i.interview_location,''), COALESCE(i.interview_mode,''), COALESCE(i.notes,'') " +
+                "FROM interview_schedules i " +
+                "JOIN jobs j ON j.id=i.job_id " +
+                "LEFT JOIN users u ON LOWER(u.email)=LOWER(j.employer_email) AND u.role='Employer' " +
+                "WHERE LOWER(i.seeker_email)=LOWER(?) ORDER BY i.scheduled_at";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, seekerEmail);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String city = rs.getString(3);
+                    String location = rs.getString(4);
+                    String jobLocation = city == null || city.isBlank() ? location : city + ", " + location;
+                    schedules.add(new InterviewSchedule(
+                            rs.getString(1),
+                            rs.getString(2),
+                            jobLocation,
+                            rs.getString(5),
+                            rs.getString(6),
+                            rs.getString(7),
+                            rs.getString(8)));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Interview schedules load error: " + e.getMessage());
+        }
+        return schedules;
+    }
+
+    public static List<InterviewSchedule> getInterviewSchedulesForEmployer(String employerEmail) {
+        List<InterviewSchedule> schedules = new ArrayList<>();
+        String sql = "SELECT j.title, COALESCE(a.name, i.seeker_email), " +
+                "COALESCE(j.city,''), COALESCE(j.location,''), i.scheduled_at, " +
+                "COALESCE(i.interview_location,''), COALESCE(i.interview_mode,''), COALESCE(i.notes,'') " +
+                "FROM interview_schedules i " +
+                "JOIN jobs j ON j.id=i.job_id " +
+                "LEFT JOIN applicants a ON a.id=i.applicant_id " +
+                "WHERE LOWER(i.employer_email)=LOWER(?) ORDER BY i.scheduled_at";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, employerEmail);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String city = rs.getString(3);
+                    String location = rs.getString(4);
+                    String jobLocation = city == null || city.isBlank() ? location : city + ", " + location;
+                    schedules.add(new InterviewSchedule(
+                            rs.getString(1),
+                            rs.getString(2),
+                            jobLocation,
+                            rs.getString(5),
+                            rs.getString(6),
+                            rs.getString(7),
+                            rs.getString(8)));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Interview schedules load error: " + e.getMessage());
+        }
+        return schedules;
+    }
+
+    public static int countInterviewSchedulesByEmployer(String employerEmail) {
+        String sql = "SELECT COUNT(*) FROM interview_schedules WHERE LOWER(employer_email)=LOWER(?)";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, employerEmail.toLowerCase());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("DB error: " + e.getMessage());
+        }
+        return 0;
+    }
+
     public static void deleteApplicant(int applicantId) {
         String sql = "DELETE FROM applicants WHERE id = ?";
         try (Connection conn = DriverManager.getConnection(DB_URL);
@@ -879,23 +1018,58 @@ public class Database {
 
     // for collecting all the answers in assessment from their latest
     public static Map<String, String> getLatestAssessment(String email) {
-        String sql = "SELECT question_key, answer_value FROM assessment_answers " +
-                "WHERE submission_id = (SELECT id FROM assessment_submissions WHERE user_email = ? ORDER BY submitted_at DESC LIMIT 1) " +
-                "ORDER BY rowid";
         Map<String, String> answers = new LinkedHashMap<>();
 
-        try (Connection conn = DriverManager.getConnection(DB_URL);
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, email.toLowerCase());
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    answers.put(rs.getString("question_key"), rs.getString("answer_value"));
+        try (Connection conn = DriverManager.getConnection(DB_URL)) {
+            Integer submissionId = findLatestAssessmentSubmissionId(conn, email.toLowerCase());
+            if (submissionId == null) {
+                return answers;
+            }
+
+            String sql = "SELECT question_key, answer_value FROM assessment_answers " +
+                    "WHERE submission_id = ? ORDER BY rowid";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, submissionId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        answers.put(rs.getString("question_key"), rs.getString("answer_value"));
+                    }
                 }
             }
         } catch (SQLException e) {
             System.err.println("DB error: " + e.getMessage());
         }
         return answers;
+    }
+
+    private static Integer findLatestAssessmentSubmissionId(Connection conn, String email) throws SQLException {
+        String[] queries = new String[]{
+                "SELECT id FROM assessment_submissions WHERE user_email = ? ORDER BY submitted_at DESC LIMIT 1",
+                "SELECT rowid FROM assessment_submissions WHERE user_email = ? ORDER BY submitted_at DESC LIMIT 1",
+                "SELECT id FROM assessment_submissions WHERE user_email = ? ORDER BY rowid DESC LIMIT 1",
+                "SELECT rowid FROM assessment_submissions WHERE user_email = ? ORDER BY rowid DESC LIMIT 1"
+        };
+
+        for (String query : queries) {
+            try (PreparedStatement ps = conn.prepareStatement(query)) {
+                ps.setString(1, email);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        return rs.getInt(1);
+                    }
+                }
+            } catch (SQLException e) {
+                if (!isMissingColumnError(e)) {
+                    throw e;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static boolean isMissingColumnError(SQLException e) {
+        String message = e.getMessage();
+        return message != null && message.toLowerCase().contains("no such column");
     }
 
     // for knowing the last assessment test date mo sinagutan
@@ -916,7 +1090,6 @@ public class Database {
     }
 
     // job seek profile details
-    // main resume = applicant profile, sub resume = profile details
     public static Map<String, String> getProfileDetails(String email) {
         String sql = "SELECT field_name, field_value FROM profile_details WHERE user_email = ?";
         Map<String, String> details = new LinkedHashMap<>();
