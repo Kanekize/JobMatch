@@ -3,6 +3,8 @@ package pages;
 import database.Database;
 import components.RoundedLineBorder;
 import models.Job;
+import models.JobMatchResult;
+import services.JobMatchService;
 import users.User;
 
 import javax.swing.*;
@@ -23,6 +25,10 @@ public class JobSeekerJobsPage extends Page {
     private JTextField searchField;
     private JComboBox<String> sortBox;
     private JPanel listPanel;
+    private JLabel matchStatusLabel;
+    private final Map<Integer, JobMatchResult> matchResults = new LinkedHashMap<>();
+    private boolean matchCalculationRunning = false;
+    private boolean assessmentAvailable = false;
 
     private static final String[] salaryRanges = {"Below ₱15,000", "₱15,000 - ₱30,000", "₱30,000 - ₱50,000", "₱50,000 and up"};
     private static final String[] skillFilters = {"Java", "HTML", "CSS", "JavaScript", "Python", "SQL", "Web Development", "Data Analysis", "Communication", "Customer Service"};
@@ -87,6 +93,11 @@ public class JobSeekerJobsPage extends Page {
         searchRow.add(rightButtons, BorderLayout.EAST);
         addBlock(searchRow, 15);
 
+        matchStatusLabel = new JLabel("Checking your latest assessment...");
+        matchStatusLabel.setFont(new Font("Inter", Font.PLAIN, 12));
+        matchStatusLabel.setForeground(Color.decode("#6b7280"));
+        addBlock(matchStatusLabel, 8);
+
         JPanel mainArea = new JPanel(new GridBagLayout());
         mainArea.setOpaque(false);
         mainArea.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -115,6 +126,112 @@ public class JobSeekerJobsPage extends Page {
         addBlock(mainArea, 0);
 
         refresh();
+        startAiMatching();
+    }
+
+    private void startAiMatching() {
+        Map<String, String> assessment = Database.getLatestAssessment(getUser().getEmail());
+        assessmentAvailable = assessment != null && !assessment.isEmpty();
+
+        if (!assessmentAvailable) {
+            setMatchStatus("Complete your assessment to generate personalized job matches.", false);
+            refresh();
+            return;
+        }
+
+        List<Job> activeJobs = new ArrayList<>();
+        for (Job job : Database.getAllJobs()) {
+            if (job != null && "Active".equalsIgnoreCase(job.getStatus())) {
+                activeJobs.add(job);
+            }
+        }
+
+        if (activeJobs.isEmpty()) {
+            setMatchStatus("There are no active job listings to match yet.", false);
+            refresh();
+            return;
+        }
+
+        matchCalculationRunning = true;
+        setMatchStatus("Matching your assessment to jobs with local Ollama (" + JobMatchService.getModelName() + ")...", false);
+        refresh();
+
+        new SwingWorker<Map<Integer, JobMatchResult>, Void>() {
+            private boolean fallbackUsed = false;
+
+            @Override
+            protected Map<Integer, JobMatchResult> doInBackground() {
+                try {
+                    Map<Integer, JobMatchResult> aiResults = JobMatchService.matchJobs(assessment, activeJobs, message ->
+                            SwingUtilities.invokeLater(() -> {
+                                if (matchCalculationRunning) {
+                                    setMatchStatus(message, message.contains("failed"));
+                                }
+                            }));
+                    Map<Integer, JobMatchResult> completeResults = new LinkedHashMap<>(aiResults);
+
+                    if (completeResults.size() < activeJobs.size()) {
+                        Map<Integer, JobMatchResult> fallback =
+                                JobMatchService.keywordFallbackMatches(assessment, activeJobs);
+                        for (Job job : activeJobs) {
+                            if (!completeResults.containsKey(job.getId()) && fallback.containsKey(job.getId())) {
+                                completeResults.put(job.getId(), fallback.get(job.getId()));
+                                fallbackUsed = true;
+                            }
+                        }
+                    }
+                    return completeResults;
+                } catch (Exception e) {
+                    System.err.println("[JobMatch/Ollama] Matching failed; using keyword fallback: "
+                            + e.getClass().getSimpleName() + ": " + e.getMessage());
+                    e.printStackTrace(System.err);
+                    fallbackUsed = true;
+                    return JobMatchService.keywordFallbackMatches(assessment, activeJobs);
+                }
+            }
+
+            @Override
+            protected void done() {
+                matchCalculationRunning = false;
+                try {
+                    matchResults.clear();
+                    matchResults.putAll(get());
+                    if (fallbackUsed) {
+                        setMatchStatus("Ollama could not match every job. Missing scores use basic keyword estimates; see the Run console for [JobMatch/Ollama] diagnostics.", true);
+                    } else if (matchResults.isEmpty()) {
+                        setMatchStatus("No match results were returned. Check that Ollama and the selected model are running.", true);
+                    } else {
+                        setMatchStatus("Local Ollama matching complete. Scores are estimates; hover over a score to see the evidence.", false);
+                    }
+                } catch (Exception e) {
+                    System.err.println("[JobMatch/Ollama] Could not apply matching results to the page.");
+                    e.printStackTrace(System.err);
+                    matchResults.clear();
+                    setMatchStatus("Matching could not be completed. Your job listings are still available.", true);
+                }
+                refresh();
+            }
+        }.execute();
+    }
+
+    private void setMatchStatus(String message, boolean warning) {
+        if (matchStatusLabel == null) return;
+        matchStatusLabel.setText(message);
+        matchStatusLabel.setForeground(warning ? Color.decode("#b45309") : Color.decode("#6b7280"));
+    }
+
+    private String matchTooltip(JobMatchResult result) {
+        StringBuilder tooltip = new StringBuilder();
+        tooltip.append(result.isAiGenerated() ? "Local Ollama AI estimate" : "Basic keyword estimate (Ollama unavailable)");
+        if (!result.getReason().isBlank()) tooltip.append("\n").append(result.getReason());
+        if (!result.getMatchedSkills().isEmpty()) {
+            tooltip.append("\nMatched skills: ").append(String.join(", ", result.getMatchedSkills()));
+        }
+        if (!result.getSkillGaps().isEmpty()) {
+            tooltip.append("\nJob skills not evidenced in assessment: ").append(String.join(", ", result.getSkillGaps()));
+        }
+        tooltip.append("\nThis score is for guidance only, not a hiring decision.");
+        return tooltip.toString();
     }
 
     private JPanel makePreferencesPanel() {
@@ -198,7 +315,7 @@ public class JobSeekerJobsPage extends Page {
 
         List<Job> inCategory = new ArrayList<>();
         for (Job job : jobs) {
-            if (!job.getStatus().equals("Active")) continue;
+            if (!"Active".equalsIgnoreCase(job.getStatus())) continue;
             if (category == null || job.getCategory().equals(category)) {
                 inCategory.add(job);
             }
@@ -219,8 +336,10 @@ public class JobSeekerJobsPage extends Page {
             }
         }
 
-        if (sortBox.getSelectedItem().equals("Most Recent")) {
-            shown.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+        if ("Most Recent".equals(sortBox.getSelectedItem())) {
+            shown.sort((a, b) -> safeDate(b.getCreatedAt()).compareTo(safeDate(a.getCreatedAt())));
+        } else if (!matchResults.isEmpty()) {
+            shown.sort((a, b) -> Integer.compare(matchScore(b), matchScore(a)));
         }
 
         listPanel.removeAll();
@@ -240,6 +359,15 @@ public class JobSeekerJobsPage extends Page {
         }
         listPanel.revalidate();
         listPanel.repaint();
+    }
+
+    private int matchScore(Job job) {
+        JobMatchResult result = matchResults.get(job.getId());
+        return result == null ? -1 : result.getMatchPercent();
+    }
+
+    private String safeDate(String value) {
+        return value == null ? "" : value;
     }
 
     private boolean passesFilters(Job job) {
@@ -448,10 +576,35 @@ public class JobSeekerJobsPage extends Page {
         matchInner.setLayout(new BoxLayout(matchInner, BoxLayout.Y_AXIS));
         matchInner.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel matchLabel = new JLabel("0% Match");
-        matchLabel.setFont(new Font("Inter", Font.BOLD, 22));
+        JobMatchResult matchResult = matchResults.get(job.getId());
+        String matchText;
+        if (matchResult != null) {
+            matchText = matchResult.getMatchPercent() + "% Match";
+        } else if (matchCalculationRunning) {
+            matchText = "Matching...";
+        } else if (!assessmentAvailable) {
+            matchText = "No Score";
+        } else {
+            matchText = "Unavailable";
+        }
+
+        JLabel matchLabel = new JLabel(matchText);
+        matchLabel.setFont(new Font("Inter", Font.BOLD, matchResult == null ? 13 : 22));
         matchLabel.setForeground(Color.decode("#2563eb"));
         matchLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        if (matchResult != null) {
+            matchLabel.setToolTipText(matchTooltip(matchResult));
+            matchBox.setToolTipText(matchTooltip(matchResult));
+        } else if (!assessmentAvailable) {
+            matchLabel.setToolTipText("Complete the assessment to generate a personalized job-match estimate.");
+            matchBox.setToolTipText(matchLabel.getToolTipText());
+        } else if (matchCalculationRunning) {
+            matchLabel.setToolTipText("The local model is comparing this job against the latest assessment.");
+            matchBox.setToolTipText(matchLabel.getToolTipText());
+        } else {
+            matchLabel.setToolTipText("No score is available yet. Check the Ollama status message above the job list.");
+            matchBox.setToolTipText(matchLabel.getToolTipText());
+        }
 
         matchInner.add(matchLabel);
 
